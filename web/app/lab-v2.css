@@ -58,7 +58,7 @@ main{background:transparent}
 .detailCopy{scrollbar-width:none}.detailCopy>small{font-size:12px}.detailCopy h1.longTitle{font-size:40px;line-height:1.04}.detailCopy h1.extraLongTitle{font-size:32px;line-height:1.08}.detailCopy h3{font-size:18px}.scores span{font-size:11px}.detailCopy h4{font-size:12px}.pills i{font-size:11px;padding:6px 8px}.metricBars span{grid-template-columns:100px 1fr 40px;font-size:11px;margin:9px 0}
 
 @media(prefers-reduced-motion:reduce){body:before,body:after{animation:none}.baskets>article,.basketAlbum{transition:none}}
-.detailCopy h1,.detailCopy h3{color:color-mix(in oklch,var(--accent) 44%,#111)}.detailCopy h3{font-size:21px}.detailCopy .scores{background:color-mix(in oklch,var(--accent) 18%,#d5d5d3)}.detailCopy .scores span{background:color-mix(in oklch,var(--accent) 7%,#fff)}
+.detailCopy h1,.detailCopy h3{color:color-mix(in oklch,var(--accent) 44%,#111)}.detailCopy h1{text-wrap:balance;overflow-wrap:anywhere}.detailCopy h3{font-size:21px}.detailCopy .scores{background:color-mix(in oklch,var(--accent) 18%,#d5d5d3)}.detailCopy .scores span{background:color-mix(in oklch,var(--accent) 7%,#fff)}
 @media(max-width:900px){.grid{grid-template-columns:repeat(5,1fr)}}
 @media(max-width:1150px){.topChrome>header{grid-template-columns:auto 1fr auto}.topChrome>header>span{display:none}.topChrome nav{overflow:auto}}
 @media(max-width:560px){.grid{grid-template-columns:repeat(3,1fr)}.baskets>article header{grid-template-columns:34px 1fr auto}.baskets>article header b{font-size:23px}.baskets>article>div{grid-template-columns:repeat(6,1fr)}}
@@ -284,9 +284,10 @@ body:before,body:after{display:none}
 
   .back>aside{width:100%;grid-template-columns:1fr;overflow-y:auto}
   .detailArt{min-height:auto;padding:58px 18vw 24px}
-  .detailArt>img{max-height:42dvh;object-fit:contain}
+  .detailArt>img{height:auto;max-height:none;object-fit:initial}
   .detailCopy{padding:26px 6vw 52px;overflow:visible}
   .detailCopy h1{font-size:clamp(34px,9vw,52px)}
+  .detailCopy h1.wideWordTitle{font-size:clamp(28px,7.5vw,42px)}
 }
 
 @media(orientation:portrait) and (max-width:560px){
