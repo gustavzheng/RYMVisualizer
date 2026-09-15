@@ -1,0 +1,20 @@
+# Dependencies and build output
+web/node_modules/
+web/.next/
+web/out/
+web/dist/
+web/.vinext/
+web/.cache/
+web/.wrangler/
+web/outputs/
+web/work/
+
+# Local tooling and environment
+web/.vercel/
+web/.env*
+web/next-env.d.ts
+*.tsbuildinfo
+*.tar.gz
+*.log
+.DS_Store
+
