@@ -76,17 +76,63 @@ function recolorPaper(e: React.PointerEvent<HTMLElement>) {
     button.style.setProperty('--choice-color', choices[Math.floor(Math.random() * choices.length)]);
 }
 export default function AlbumLab() {
-    const [all, setAll] = useState<Album[]>([]), [tab, setTab] = useState(0), [focus, setFocus] = useState<Album | null>(null), [filtersOpen, setFiltersOpen] = useState(false);
+    const [all, setAll] = useState<Album[]>([]), [tab, setTab] = useState(0), [focus, setFocus] = useState<Album | null>(null), [filtersOpen, setFiltersOpen] = useState(false), [tabsCollapsed, setTabsCollapsed] = useState(false), [portraitMenuOpen, setPortraitMenuOpen] = useState(false);
+    const restoreMenuControls=useRef<null|(()=>void)>(null);
     const [q, setQ] = useState(''), [gs, setGs] = useState<string[]>([]), [ts, setTs] = useState<string[]>([]), [gm, setGm] = useState<Mode>('any'), [tm, setTm] = useState<Mode>('any'), [sorts,setSorts]=useState<SortKey[]>([]);
     useEffect(() => { fetch('/data/albums.json').then(r => r.json() as Promise<Album[]>).then(setAll); const saved = Number(localStorage.getItem('chroma-tab')); if (Number.isInteger(saved) && saved >= 0 && saved < 8)
         setTab(saved); }, []);
-    const chooseTab = (n: number) => { if (n === 8) { window.location.assign('/relations'); return; } setTab(n); localStorage.setItem('chroma-tab', String(n)); };
+    useEffect(() => {
+        let touchY = 0;
+        const portrait = window.matchMedia('(orientation: portrait)');
+        const changeForDirection = (down: boolean) => {
+            if (!portrait.matches || filtersOpen || window.scrollY < 72) setTabsCollapsed(false);
+            else setTabsCollapsed(down);
+        };
+        const onWheel = (event: WheelEvent) => { if (Math.abs(event.deltaY) > 4) changeForDirection(event.deltaY > 0); };
+        const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY ?? 0; };
+        const onTouchMove = (event: TouchEvent) => { const y = event.touches[0]?.clientY ?? touchY; if (Math.abs(y - touchY) > 10) { changeForDirection(y < touchY); touchY = y; } };
+        const onScroll = () => { if (window.scrollY < 72) setTabsCollapsed(false); };
+        const onOrientation = () => { if (!portrait.matches) setTabsCollapsed(false); };
+        window.addEventListener('wheel', onWheel, { passive: true });
+        window.addEventListener('touchstart', onTouchStart, { passive: true });
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('scroll', onScroll, { passive: true });
+        portrait.addEventListener('change', onOrientation);
+        return () => { window.removeEventListener('wheel', onWheel); window.removeEventListener('touchstart', onTouchStart); window.removeEventListener('touchmove', onTouchMove); window.removeEventListener('scroll', onScroll); portrait.removeEventListener('change', onOrientation); };
+    }, [filtersOpen]);
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setPortraitMenuOpen(false); };
+        const onChapter = (event: MouseEvent) => { if ((event.target as HTMLElement).closest('.genreDirectory button,.basketDirectory button')) setPortraitMenuOpen(false); };
+        window.addEventListener('keydown', onKey);
+        document.addEventListener('click', onChapter);
+        return () => { window.removeEventListener('keydown', onKey); document.removeEventListener('click', onChapter); };
+    }, []);
+    useEffect(() => {
+        if(!window.matchMedia('(orientation: portrait)').matches)return;
+        const host=document.getElementById('portrait-menu-layer');
+        if(!host)return;
+        const moved=[...document.querySelectorAll<HTMLElement>('.pageSurface .tagTools:not(.basketTools),.pageSurface .viewSwitch,.pageSurface .timelineTools,.pageSurface .axes,.pageSurface .sorter,.pageSurface .genreDirectory,.pageSurface .basketDirectory,.pageSurface .basketTools')].map(node=>{
+            const marker=document.createComment('menu-control');
+            node.parentNode?.insertBefore(marker,node);
+            host.appendChild(node);
+            return{node,marker};
+        });
+        const restore=()=>moved.forEach(({node,marker})=>{if(marker.parentNode)marker.parentNode.insertBefore(node,marker);marker.remove();});
+        restoreMenuControls.current=restore;
+        return()=>{restore();if(restoreMenuControls.current===restore)restoreMenuControls.current=null;};
+    },[tab]);
+    const chooseTab = (n: number) => { if (n === 8) { window.location.assign('/relations'); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; setTab(n); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
+    const handlePageClick = (event: React.MouseEvent<HTMLElement>) => {
+        if ((event.target as HTMLElement).closest('.genreDirectory button,.basketDirectory button')) setPortraitMenuOpen(false);
+    };
     const genres = useMemo(() => count(all.flatMap(a => [...new Set(a.genres)])), [all]);
     const tags = useMemo(() => count(all.flatMap(a => [...new Set(a.descriptors)])), [all]);
     const data = useMemo(() => all.filter(a => match(a.genres, gs, gm) && match(a.descriptors, ts, tm) && (!q || `${a.title} ${a.artist}`.toLowerCase().includes(q.toLowerCase()))), [all, gs, ts, gm, tm, q]);
-    return <main onPointerDown={recolorPaper}><div className="ambientBackground" aria-hidden="true"/><div className="topChrome"><header><b>◉ CHROMA <small>MUSIC DATA ATLAS</small></b><nav>{tabs.map((x, i) => <button className={tab === i ? 'active' : ''} onClick={() => chooseTab(i)} key={x}>{String(i).padStart(2, '0')} <b>{x}</b></button>)}</nav><span>{data.length} / {all.length} ALBUMS</span><button className="filterButton" onClick={() => setFiltersOpen(!filtersOpen)}>筛选 · {gs.length + ts.length} {filtersOpen ? '−' : '＋'}</button></header>
+    return <main className={portraitMenuOpen ? 'portraitMenuOpen' : ''} onClick={handlePageClick} onPointerDown={recolorPaper}><div className="ambientBackground" aria-hidden="true"/><div className="pageSurface"><div className={'topChrome ' + (tabsCollapsed ? 'tabsCollapsed' : '')}><header><b>◉ CHROMA <small>MUSIC DATA ATLAS</small></b><nav>{tabs.map((x, i) => <button className={tab === i ? 'active' : ''} onClick={() => chooseTab(i)} key={x}>{String(i).padStart(2, '0')} <b>{x}</b></button>)}</nav><span>{data.length} / {all.length} ALBUMS</span><button className="filterButton" onClick={() => setFiltersOpen(!filtersOpen)}>筛选 · {gs.length + ts.length} {filtersOpen ? '−' : '＋'}</button></header>
     <aside className={'filters ' + (filtersOpen ? 'open' : '')}><div><input value={q} onChange={e => setQ(e.target.value)} placeholder="搜索专辑 / 艺术家"/><button onClick={() => setQ('')}>清空搜索</button></div><Group title="流派" list={genres} sel={gs} set={setGs} mode={gm} setMode={setGm}/><Group title="标签" list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm}/></aside></div>
-    <section className={tab === 0 ? 'overviewSection' : tab >= 3 && tab <= 5 ? 'chartSection' : undefined}><Title n={tab} title={tabs[tab]}/>{tab === 0 && <Home data={data} go={chooseTab} open={setFocus}/>} {tab === 1 && <Genres data={data} list={genres} sel={gs} set={setGs} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 2 && <Tags data={data} list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 3 && <ScatterOverview data={data} open={setFocus}/>} {tab === 4 && <Timeline data={data} genres={genres} tags={tags} open={setFocus}/>} {tab === 5 && <Visual data={data} open={setFocus}/>} {tab === 6 && <BasketView data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 7 && <Grid data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>}</section>
+    <section className={tab === 0 ? 'overviewSection' : tab >= 3 && tab <= 5 ? 'chartSection' : undefined}><Title n={tab} title={tabs[tab]}/>{tab === 0 && <Home data={data} go={chooseTab} open={setFocus}/>} {tab === 1 && <Genres data={data} list={genres} sel={gs} set={setGs} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 2 && <Tags data={data} list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 3 && <ScatterOverview data={data} open={setFocus}/>} {tab === 4 && <Timeline data={data} genres={genres} tags={tags} open={setFocus}/>} {tab === 5 && <Visual data={data} open={setFocus}/>} {tab === 6 && <BasketView data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 7 && <Grid data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>}</section></div>
+    <div id="portrait-menu-layer" className="portraitMenuLayer"/>
+    {tab > 0 && <button className="portraitMenuButton" aria-label={portraitMenuOpen ? '关闭页面菜单' : '打开页面菜单'} aria-expanded={portraitMenuOpen} onClick={() => setPortraitMenuOpen(open => !open)}><i/><i/><i/></button>}
     {focus && <Detail a={focus} close={() => setFocus(null)}/>}</main>;
 }
 function Title({ n, title }: {
@@ -131,7 +177,7 @@ function Genres({ data, list, sel, set, open, sorts, setSorts }: {
     open: (a: Album) => void;
     sorts: SortKey[];
     setSorts: (sorts: SortKey[]) => void;
-}) { const [optionsExpanded, setOptionsExpanded] = useState(false), [gridExpanded, setGridExpanded] = useState(false), [active,setActive]=useState(0), sections=[['genre-options','流派选项'],['genre-baskets','流派篮子'],['genre-results','筛选结果']], jump=(id:string,i:number)=>{setActive(i);document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}; return <div className="genrePage"><nav className="genreDirectory" aria-label="流派星系章节">{sections.map(([id,label],i)=><button className={active===i?'active':''} onClick={()=>jump(id,i)} key={id}>{label}</button>)}</nav><div id="genre-options" className="expandStage"><ChoiceCloud list={list} sel={sel} set={set} limit={optionsExpanded ? list.length : 72}/><button className={`expandButton ${optionsExpanded ? 'expanded' : ''}`} onClick={() => setOptionsExpanded(!optionsExpanded)}>{optionsExpanded ? '收起选项 ↑' : '展开全部流派 ↓'}</button></div><div id="genre-baskets" className="basketStage"><div className="genreGrid">{list.slice(0, gridExpanded ? list.length : 48).map(([g], i) => { const albums = data.filter(a => a.genres.includes(g)); return <article key={g} style={{ '--basket-tint': colors[i % colors.length] } as React.CSSProperties}><h2>{g}</h2><span>{albums.length} 张</span><div>{albums.slice(0, 18).map(a => <button onClick={() => open(a)} key={a.id}><img src={a.cover} alt=""/></button>)}</div></article>; })}</div><button className={`expandButton gridToggle ${gridExpanded ? 'expanded' : ''}`} onClick={() => setGridExpanded(!gridExpanded)}>{gridExpanded ? '折叠流派篮子 ↑' : `展开全部流派篮子 · ${list.length} ↓`}</button></div><div id="genre-results"><ResultGrid data={data} open={open} sorts={sorts} setSorts={setSorts}/></div></div>; }
+}) { const [optionsExpanded, setOptionsExpanded] = useState(false), [gridExpanded, setGridExpanded] = useState(false), [active,setActive]=useState(0), sections=[['genre-options','流派选项'],['genre-baskets','流派篮子'],['genre-results','筛选结果']], jump=(id:string,i:number)=>{setActive(i);document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}; return <div className="genrePage"><nav className="genreDirectory" aria-label="流派星系章节">{sections.map(([id,label],i)=><button className={active===i?'active':''} onClick={()=>jump(id,i)} key={id}>{label}</button>)}</nav><div id="genre-options" className="expandStage"><ChoiceCloud list={list} sel={sel} set={set} limit={optionsExpanded ? list.length : 72}/><button className={`expandButton ${optionsExpanded ? 'expanded' : ''}`} onClick={() => setOptionsExpanded(!optionsExpanded)}>{optionsExpanded ? '收起选项 ↑' : '展开全部流派 ↓'}</button></div><div id="genre-baskets" className="basketStage"><div className="genreGrid">{list.slice(0, gridExpanded ? list.length : 48).map(([g], i) => { const albums = data.filter(a => a.genres.includes(g)); return <article key={g} style={{ '--basket-tint': colors[i % colors.length] } as React.CSSProperties}><h2>{g}</h2><span>{albums.length} 张</span><div>{albums.slice(0, 24).map(a => <button onClick={() => open(a)} key={a.id}><img src={a.cover} alt=""/></button>)}</div></article>; })}</div><button className={`expandButton gridToggle ${gridExpanded ? 'expanded' : ''}`} onClick={() => setGridExpanded(!gridExpanded)}>{gridExpanded ? '折叠流派篮子 ↑' : `展开全部流派篮子 · ${list.length} ↓`}</button></div><div id="genre-results"><ResultGrid data={data} open={open} sorts={sorts} setSorts={setSorts}/></div></div>; }
 function Tags({ data, list, sel, set, mode, setMode, open, sorts, setSorts }: {
     data: Album[];
     list: [
@@ -243,7 +289,7 @@ function Visual({ data, open }: {
     data: Album[];
     open: (a: Album) => void;
 }) {
-    const [x, setX] = useState<Metric>('hue'), [y, setY] = useState<Metric>('detail');
+    const [x, setX] = useState<Metric>('hue'), [y, setY] = useState<Metric>('detail'), [axesOpen, setAxesOpen] = useState(false);
     const spreadMetrics = new Set<Metric>(['hue', 'entropy', 'detail', 'symmetry']);
     const ordered = useMemo(() => new Map(metrics.map(m => {
         const albums = [...data].sort((a, b) => value(a, m) - value(b, m));
@@ -284,7 +330,7 @@ function Visual({ data, open }: {
         return hi === lo ? 50 : (v - lo) / (hi - lo) * 94 + 3;
     };
     const format = (m: Metric, n: number) => m === 'hue' ? `${Math.round(n)}°` : n.toFixed(1);
-    return <><div className="axes"><div><b>Y 纵轴</b>{metrics.map(m => <button className={y === m ? 'active' : ''} onClick={() => setY(m)} key={m}>{names[m]}</button>)}</div><button onClick={() => { const t = x; setX(y); setY(t); }}>⇄</button><div><b>X 横轴</b>{metrics.map(m => <button className={x === m ? 'active' : ''} onClick={() => setX(m)} key={m}>{names[m]}</button>)}</div></div><div className="plot covers chartPlot"><span className="axisY">{names[y]} →</span><span className="axisX">{names[x]} →</span><Ticks axis="x" values={ticks(x)} format={n => format(x, n)}/><Ticks axis="y" values={ticks(y)} format={n => format(y, n)}/>{data.map(a => <button title={`${a.title} · ${names[x]} ${format(x, value(a, x))} / ${names[y]} ${format(y, value(a, y))}`} onClick={() => open(a)} key={a.id} style={{left: `${pos(a, x)}%`, bottom: `${pos(a, y)}%`}}><img src={a.cover} alt=""/></button>)}</div></>;
+    return <><div className={`axes ${axesOpen ? 'open' : 'collapsed'}`}><button className="axesToggle" aria-expanded={axesOpen} onClick={() => setAxesOpen(v => !v)}><b>坐标选项</b><span>{axesOpen ? '−' : '+'}</span></button><div><b>Y 纵轴</b>{metrics.map(m => <button className={y === m ? 'active' : ''} onClick={() => setY(m)} key={m}>{names[m]}</button>)}</div><button className="axesSwap" onClick={() => { const t = x; setX(y); setY(t); }}>⇄</button><div><b>X 横轴</b>{metrics.map(m => <button className={x === m ? 'active' : ''} onClick={() => setX(m)} key={m}>{names[m]}</button>)}</div></div><div className="plot covers chartPlot"><span className="axisY">{names[y]} →</span><span className="axisX">{names[x]} →</span><Ticks axis="x" values={ticks(x)} format={n => format(x, n)}/><Ticks axis="y" values={ticks(y)} format={n => format(y, n)}/>{data.map(a => <button title={`${a.title} · ${names[x]} ${format(x, value(a, x))} / ${names[y]} ${format(y, value(a, y))}`} onClick={() => open(a)} key={a.id} style={{left: `${pos(a, x)}%`, bottom: `${pos(a, y)}%`}}><img src={a.cover} alt=""/></button>)}</div></>;
 }
 type ClusterKey = Metric | 'year' | 'userRating' | 'communityRating' | 'ratingCount' | 'duration' | 'trackCount' | 'avgTrack' | 'rank' | 'genres' | 'descriptors' | 'artist' | 'language' | 'releaseType';
 const clusterOptions: [ClusterKey,string,string][] = [

@@ -123,7 +123,8 @@ body:before,body:after{display:none}
 .chartSection{height:calc(100dvh - 96px);min-height:0;padding:48px 10px 42px 38px!important;overflow:hidden}.chartSection>.title,.chartSection>.timelineNote,.chartSection>.chartNote{display:none}.chartSection>.plot,.chartSection>.area{height:100%;margin:0}.chartSection .axisY{top:-36px;left:0}.chartSection .axisX{bottom:-36px;right:0}.chartSection .ticks-x span,.chartSection .logTicksX span{bottom:-24px}.chartSection .ticks-y span,.chartSection .logTicks:not(.logTicksX) span{left:-30px}.chartSection .ticks-x span:first-child,.chartSection .logTicksX span:first-child{transform:none}.chartSection .ticks-x span:last-child,.chartSection .logTicksX span:last-child{transform:translateX(-100%)}.chartSection .ticks-y span:first-child,.chartSection .logTicks:not(.logTicksX) span:first-child{transform:translateY(0)}.chartSection .ticks-y span:last-child,.chartSection .logTicks:not(.logTicksX) span:last-child{transform:translateY(100%)}.chartSection .streamYears{bottom:-24px}body:has(.chartSection),main:has(.chartSection){height:100dvh;overflow:hidden}
 .home{grid-template-columns:minmax(0,1.08fr) repeat(2,minmax(0,.5fr));grid-template-rows:repeat(4,minmax(0,1fr))}.home article{position:relative;overflow:hidden;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto minmax(0,1fr);align-content:start}.home article>b,.home article>span{grid-column:1}.home article>div{grid-column:1/-1;grid-template-columns:repeat(8,minmax(0,1fr));grid-auto-rows:max-content;margin-top:16px;max-height:none;overflow:hidden;align-content:start}.home article>div>button{aspect-ratio:1;min-height:0;align-self:start}.home article>div>button img{display:block;width:100%;height:100%;aspect-ratio:1;object-fit:cover}.home .redraw{position:static;grid-column:2;grid-row:1/3;align-self:center;margin-left:18px;padding:13px 20px!important;border:0!important;border-radius:999px;background:#ffffffa0!important;font-size:13px;font-weight:700;white-space:nowrap}.home .redraw:hover{transform:none;background:#fff!important}
 .animatedPlot>button,.covers>button{transition:left .72s cubic-bezier(.22,.8,.22,1),bottom .72s cubic-bezier(.22,.8,.22,1),opacity .25s,transform .25s}.animatedPlot>button.plotHidden{opacity:0;pointer-events:none;transform:translate(-50%,50%) scale(.35)}
-.basketPanel{margin:50px 0 72px;padding-top:22px;border-top:4px solid #171713}.basketPanel>header{display:grid;grid-template-columns:minmax(240px,.7fr) 1fr;gap:30px;align-items:end;margin-bottom:22px}.basketPanel>header h2{font:36px Georgia;margin:0}.basketPanel>header p{margin:0;color:#666;font:12px/1.7 Georgia}.basketTools{position:sticky;top:126px;z-index:9;padding:12px;background:#f4f1e8d9;backdrop-filter:blur(18px)}.basketTools span{margin-left:auto;font-size:10px}.basketPanel .baskets{grid-template-columns:repeat(2,minmax(0,1fr))}.basketPanel .baskets>article>div{grid-template-columns:repeat(8,1fr)}
+.basketPanel{margin:50px 0 72px;padding-top:22px;border-top:4px solid #171713}.basketPanel>header{display:grid;grid-template-columns:minmax(240px,.7fr) 1fr;gap:30px;align-items:end;margin-bottom:22px}.basketPanel>header h2{font:36px Georgia;margin:0}.basketPanel>header p{margin:0;color:#666;font:12px/1.7 Georgia}.basketTools{position:sticky;top:126px;z-index:9;padding:12px;background:#f4f1e8d9}.basketTools span{margin-left:auto;font-size:10px}.basketPanel .baskets{grid-template-columns:repeat(2,minmax(0,1fr))}.basketPanel .baskets>article>div{grid-template-columns:repeat(8,1fr)}
+@media(orientation:landscape){.basketTools{backdrop-filter:blur(18px)}}
 .back{backdrop-filter:none;background:#00000070}.back>aside{background:radial-gradient(ellipse 100% 95% at 8% 8%,color-mix(in oklch,var(--accent) 26%,#f7f4edb8),transparent 76%),#f7f4edb8;backdrop-filter:blur(44px) saturate(1.28);-webkit-backdrop-filter:blur(44px) saturate(1.28);border:0}.detailArt:before{display:none}.detailCopy .scores{background:#ffffff35;border:0;gap:1px}.detailCopy .scores span{background:#ffffff4d;min-width:0}.detailCopy .scores b{white-space:nowrap;font-size:clamp(14px,1.45vw,24px);letter-spacing:-.03em}.detailCopy .scores span:last-child b{font-size:clamp(10px,1.05vw,18px)}
 @media(max-width:900px){.overviewSection{height:auto;min-height:calc(100dvh - 96px);padding:40px 0 80px}.overviewSection>.title{display:grid}.home{grid-template-columns:2fr 1fr;grid-template-rows:repeat(4,minmax(150px,auto))}.home article>div{grid-template-columns:repeat(6,minmax(0,1fr))}.basketPanel .baskets{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.home article>div{grid-template-columns:repeat(6,1fr)}.basketPanel>header{grid-template-columns:1fr}.basketPanel .baskets{grid-template-columns:1fr}.basketTools{top:112px}.basketTools span{width:100%;margin:5px 0 0}}
@@ -144,10 +145,11 @@ body:before,body:after{display:none}
 .tagTools:not(.basketTools) button:active,.viewSwitch button:active,.timelineTools button:active,.axes button:active,.sorter button:active{background:var(--choice-color,#efd39c)!important}
 .timelineTools{width:252px;max-height:calc(100dvh - 180px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:auto;scrollbar-width:none}.timelineTools::-webkit-scrollbar{display:none}.timelineTools button{min-height:36px;font-size:13px;padding:7px 8px}.timelineTools button:nth-child(-n+2){position:sticky;top:-9px;z-index:2;background:#f5f2e9!important}.timelineTools button:nth-child(-n+2).active{background:#171713!important;color:#fff!important}.timelineTools button:last-child{grid-column:1/-1}
 .axes{width:266px;max-height:calc(100dvh - 180px);display:grid;grid-template-columns:1fr;overflow:auto;scrollbar-width:none}.axes::-webkit-scrollbar{display:none}.axes>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.axes>div>b{grid-column:1/-1;margin:4px 8px;font:17px Georgia,"Songti SC",serif}.axes>button{order:2;text-align:center;font-size:22px}.axes>div:last-child{order:3}.axes>div button{min-height:34px;font-size:12px;padding:6px 7px}
+.axes>div:last-child{padding-bottom:14px}
 .sorter{max-height:calc(100dvh - 180px);overflow-y:auto;scrollbar-width:none;flex-direction:column!important;flex-wrap:nowrap!important;align-items:stretch!important}.sorter::-webkit-scrollbar{display:none}.sorterToggle{display:flex!important;align-items:center;justify-content:space-between;transform:none!important;width:100%}.sorterToggle b{margin:0;font:17px Georgia,"Songti SC",serif}.sorterToggle span{font:20px/1 Arial}.sorterOptions{display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;align-items:stretch;width:100%;gap:5px}.sorter.collapsed{overflow:hidden}.sorter.collapsed .sorterOptions{display:none!important}.sorter .sortClear{margin-top:6px}.sorter .sortClear,.sorter .sortClear:hover,.sorter .sortClear:active,.axes>button,.axes>button:hover,.axes>button:active{background:transparent!important;box-shadow:none!important;filter:none!important}.sorterOptions>button:not(.active):hover,.sorterOptions>button:not(.active):active{background:transparent!important;box-shadow:none!important;filter:none!important}
 .genreDirectory{position:fixed;left:max(36px,3vw);top:150px;z-index:18;width:150px;display:flex;flex-direction:column;gap:5px;padding:9px;background:transparent}.genreDirectory button{min-height:44px;border:0;background:transparent;color:#171713;padding:9px 10px;text-align:left;font:16px Georgia,"Songti SC",serif;transform:rotate(-1.2deg)}.genreDirectory button:nth-child(even){transform:rotate(1.2deg)}.genreDirectory button:hover{background:#ffffff9c}.genreDirectory button.active{background:var(--choice-color,#efd39c)!important;color:#171713!important;filter:saturate(1.35);box-shadow:0 4px 12px #0002}.genreDirectory button:nth-child(1){--choice-color:#f0b6ad}.genreDirectory button:nth-child(2){--choice-color:#b8c9ef}.genreDirectory button:nth-child(3){--choice-color:#b9d9ca}.genrePage .sorter{top:306px}.tagPage .sorter{top:310px}.basketPage .basketTools{top:362px}.basketPage .sorter{top:582px;max-height:max(64px,calc(100dvh - 600px))}
-@media(max-width:700px){.tagTools:not(.basketTools),.viewSwitch,.timelineTools,.axes,.sorter{position:sticky;left:auto;top:106px;width:auto;max-height:none;flex-direction:row;flex-wrap:wrap;margin-bottom:18px;background:#f4f1e8e8;backdrop-filter:blur(18px)}.timelineTools,.axes{display:flex;overflow:visible}.axes>div{display:flex;flex-wrap:wrap}.axes>div>b{width:100%}.timelineTools button:last-child{grid-column:auto}}
-@media(max-width:700px){.genreDirectory{position:sticky;left:auto;top:106px;width:auto;flex-direction:row;margin-bottom:18px;background:#f4f1e8e8;backdrop-filter:blur(18px)}.genrePage .sorter,.tagPage .sorter,.basketPage .sorter{top:106px;max-height:none}}
+@media(max-width:700px){.tagTools:not(.basketTools),.viewSwitch,.timelineTools,.axes,.sorter{position:sticky;left:auto;top:106px;width:auto;max-height:none;flex-direction:row;flex-wrap:wrap;margin-bottom:18px;background:#f4f1e8e8}.timelineTools,.axes{display:flex;overflow:visible}.axes>div{display:flex;flex-wrap:wrap}.axes>div>b{width:100%}.timelineTools button:last-child{grid-column:auto}}
+@media(max-width:700px){.genreDirectory{position:sticky;left:auto;top:106px;width:auto;flex-direction:row;margin-bottom:18px;background:#f4f1e8e8}.genrePage .sorter,.tagPage .sorter,.basketPage .sorter{top:106px;max-height:none}}
 
 /* Fluid color field inspired by the referenced water surface. */
 .ambientBackground{
@@ -180,3 +182,376 @@ body:before,body:after{display:none}
 .baskets>article:hover{box-shadow:inset 0 1px #fff,0 20px 46px #26364626}
 .baskets>article.active{border:1px solid #ffffffd9!important;box-shadow:inset 0 1px #fff,0 0 0 3px color-mix(in srgb,var(--basket-tint) 32%,transparent),0 20px 46px #26364626}
 @media(prefers-reduced-motion:reduce){.ambientBackground,.ambientBackground:before,.ambientBackground:after{animation:none}}
+
+/* Portrait layout only. Landscape keeps the desktop composition above unchanged. */
+@media(orientation:portrait){
+  .topChrome>header{
+    height:auto;
+    min-height:96px;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px 12px;
+    padding:12px 4vw 10px;
+  }
+  .topChrome>header>b{min-width:0}
+  .topChrome>header>span{display:none}
+  .topChrome nav{
+    grid-column:1/-1;
+    grid-row:2;
+    display:flex;
+    gap:5px;
+    width:100%;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    scrollbar-width:none;
+  }
+  .topChrome nav::-webkit-scrollbar{display:none}
+  .topChrome nav button{flex:0 0 auto;min-width:84px;padding:8px 9px}
+  .filterButton{grid-column:2;grid-row:1;white-space:nowrap}
+
+  .filters.open{max-height:calc(100dvh - 96px)}
+  .filters>div{gap:8px}
+  .filters input{width:min(270px,65vw);min-width:0}
+  .filters legend{flex-wrap:wrap}
+  .filters legend i{margin-left:0}
+
+  main>section{width:92vw;padding:34px 0 72px}
+  .title{grid-template-columns:1fr;gap:12px;margin-bottom:30px}
+  .title p{grid-column:auto}
+  .title h1{font-size:clamp(40px,11vw,68px)}
+
+  .overviewSection{height:auto;min-height:0;padding:30px 0 64px}
+  .overviewSection>.title{display:grid}
+  .overviewSection .home{height:auto}
+  .home{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;gap:10px}
+  .home article{grid-column:1/-1;grid-row:auto;min-height:0;padding:20px}
+  .home article>div{grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;max-height:68dvh;overflow:hidden}
+  .overviewSection .home>button{min-height:132px;padding:17px}
+  .home>button>b{font-size:34px}
+  .home>button>h2{font-size:clamp(16px,4.7vw,24px)}
+
+  body:has(.chartSection),main:has(.chartSection){height:auto;overflow:visible}
+  .chartSection{
+    height:auto;
+    min-height:calc(100dvh - 96px);
+    padding:34px 5px 72px 32px!important;
+    overflow:visible;
+  }
+  .chartSection>.title{display:grid}
+  .chartSection>.timelineNote,.chartSection>.chartNote{display:block}
+  .chartSection>.plot,.chartSection>.area{height:62dvh;min-height:460px;margin:46px 0}
+  .plot>button,.covers>button{width:30px;height:30px}
+
+  .tagTools:not(.basketTools),.viewSwitch,.timelineTools,.axes,.sorter,
+  .genreDirectory,.basketDirectory,.basketTools{
+    position:sticky;
+    left:auto;
+    top:96px;
+    z-index:18;
+    width:auto;
+    max-height:none;
+    display:flex;
+    flex-flow:row nowrap!important;
+    gap:5px;
+    margin-bottom:16px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    background:#f4f1e8ee;
+    scrollbar-width:none;
+  }
+  .tagTools:not(.basketTools)::-webkit-scrollbar,.viewSwitch::-webkit-scrollbar,
+  .timelineTools::-webkit-scrollbar,.axes::-webkit-scrollbar,.sorter::-webkit-scrollbar,
+  .genreDirectory::-webkit-scrollbar,.basketDirectory::-webkit-scrollbar,.basketTools::-webkit-scrollbar{display:none}
+  .tagTools:not(.basketTools) button,.viewSwitch button,.timelineTools button,.axes button,
+  .sorter button,.genreDirectory button,.basketDirectory button,.basketTools button{flex:0 0 auto;white-space:nowrap;transform:none}
+  .timelineTools button:nth-child(-n+2){position:static}
+  .timelineTools button:last-child{grid-column:auto}
+  .axes>div,.sorterOptions{display:flex!important;flex-flow:row nowrap!important;width:auto}
+  .axes>div>b{grid-column:auto;width:auto;white-space:nowrap;align-self:center}
+  .sorterToggle{width:auto}
+  .sorter.collapsed .sorterOptions{display:none!important}
+  .genrePage .sorter,.tagPage .sorter,.basketPage .basketTools,.basketPage .sorter{top:96px;max-height:none}
+  .basketTools{align-items:center}
+  .basketTools span{flex:0 0 auto;width:auto!important;margin:0 4px;white-space:nowrap}
+
+  .choiceCloud{justify-content:flex-start;padding-inline:0;overflow:hidden}
+  .choiceCloud button{zoom:1.18}
+  .genreGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .genreGrid.genreGrid article{min-height:190px;padding:16px}
+  .genreGrid article>div{grid-template-columns:repeat(4,1fr)}
+  .matrix{width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+  .basketPanel>header{grid-template-columns:1fr;gap:12px}
+  .basketPanel .baskets{grid-template-columns:1fr}
+
+  .back>aside{width:100%;grid-template-columns:1fr;overflow-y:auto}
+  .detailArt{min-height:auto;padding:58px 18vw 24px}
+  .detailArt>img{max-height:42dvh;object-fit:contain}
+  .detailCopy{padding:26px 6vw 52px;overflow:visible}
+  .detailCopy h1{font-size:clamp(34px,9vw,52px)}
+}
+
+@media(orientation:portrait) and (max-width:560px){
+  .topChrome>header{padding-inline:12px}
+  .topChrome>header>b small{display:none}
+  main>section{width:calc(100vw - 24px)}
+  .home article>div{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .genreGrid{grid-template-columns:1fr}
+  .grid{gap:24px 8px}
+  .scores{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Preserve the original glass hierarchy and keep its scroll surfaces clean. */
+.topChrome{
+  background:#f4f4f3b8;
+  backdrop-filter:blur(26px) saturate(1.16);
+  -webkit-backdrop-filter:blur(26px) saturate(1.16);
+  backdrop-filter:blur(26px) saturate(1.16)
+}
+.back{
+  background:#17171345;
+  backdrop-filter:blur(18px) saturate(1.08);
+  -webkit-backdrop-filter:blur(18px) saturate(1.08);
+  backdrop-filter:blur(18px) saturate(1.08)
+}
+.back>aside{
+  background:radial-gradient(ellipse 100% 95% at 8% 8%,color-mix(in oklch,var(--accent) 24%,#f7f4edb0),transparent 76%),#f7f4edb5;
+  backdrop-filter:blur(44px) saturate(1.28);
+  -webkit-backdrop-filter:blur(44px) saturate(1.28);
+  backdrop-filter:blur(44px) saturate(1.28);
+  scrollbar-width:none
+}
+.back>aside::-webkit-scrollbar,.detailCopy::-webkit-scrollbar{display:none}
+
+@media(orientation:portrait){
+  .home article>div{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+  .home article>div::-webkit-scrollbar{display:none}
+
+  .tagTools:not(.basketTools),.viewSwitch,.timelineTools,.axes,.sorter,
+  .genreDirectory,.basketDirectory,.basketTools{
+    padding:10px;
+    border:1px solid #ffffff91;
+    border-radius:12px;
+    background:#f4f1e8ba;
+    box-shadow:inset 0 1px #fff,0 8px 22px #29261f0d
+  }
+  .genreDirectory,.basketDirectory{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    overflow:visible
+  }
+  .genreDirectory button,.basketDirectory button{
+    min-width:0;
+    width:100%;
+    padding:9px 5px;
+    text-align:center;
+    white-space:normal;
+    font-size:13px
+  }
+  .tagTools:not(.basketTools),.viewSwitch{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    overflow:visible
+  }
+  .viewSwitch{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tagTools:not(.basketTools) button,.viewSwitch button{
+    min-width:0;
+    width:100%;
+    text-align:center;
+    white-space:normal
+  }
+  .basketTools{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    overflow:visible
+  }
+  .basketTools button{min-width:0;width:100%;text-align:center;white-space:normal;font-size:13px}
+  .basketTools span{grid-column:1/-1;text-align:center}
+
+  .sorter{
+    display:grid!important;
+    grid-template-columns:1fr;
+    overflow:hidden
+  }
+  .sorterToggle{width:100%;min-height:38px;justify-content:space-between}
+  .sorterOptions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;max-height:30dvh;overflow-y:auto;scrollbar-width:none}
+  .sorterOptions::-webkit-scrollbar{display:none}
+  .sorterOptions button{min-width:0;width:100%;white-space:normal;text-align:center}
+
+  .timelineTools{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    max-height:34dvh;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain
+  }
+  .timelineTools button{min-width:0;width:100%;white-space:normal;text-align:center;transform:none}
+
+  .axes{
+    display:grid!important;
+    grid-template-columns:1fr;
+    max-height:42dvh;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain
+  }
+  .axes>.axesToggle{display:flex!important;order:-2;align-items:center;justify-content:space-between;width:100%;transform:none!important}
+  .axesToggle b{font:17px Georgia,"Songti SC",serif}
+  .axesToggle span{font:22px Arial}
+  .axes>div{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;width:100%}
+  .axes>div>b{grid-column:1/-1;width:auto;margin:8px 4px 3px}
+  .axes>div button{min-width:0;width:100%;white-space:normal;text-align:center}
+  .axes>.axesSwap{width:100%;order:2;transform:none!important}
+  .axes>div:last-child{order:3}
+  .axes.collapsed{overflow:hidden}
+  .axes.collapsed>div,.axes.collapsed>.axesSwap{display:none!important}
+
+  .stream{container-type:size;overflow:hidden}
+  .stream svg{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:100cqh;
+    height:100cqw;
+    transform:translate(-50%,-50%) rotate(90deg)
+  }
+  .streamYears{
+    left:50%!important;
+    right:auto;
+    top:50%!important;
+    bottom:auto!important;
+    width:100cqh;
+    transform:translate(-50%,-50%) rotate(90deg)
+  }
+  .streamYears span{transform:translateX(-50%) rotate(-90deg)}
+  .stream .rawScale{right:auto;left:10px}
+}
+
+/* Final portrait cascade: replace the former card-and-scroller treatment. */
+@media(orientation:portrait){
+  .topChrome>header{min-height:64px;padding-block:10px;transition:min-height .22s ease}
+  .topChrome nav{max-height:58px;opacity:1;transition:max-height .22s ease,opacity .16s ease,margin .22s ease}
+  .topChrome.tabsCollapsed nav{max-height:0;opacity:0;margin:0;overflow:hidden;pointer-events:none}
+  .filters.open{max-height:none;overflow:visible}
+  main>section{padding-top:24px}
+  .chartSection{min-height:0;padding-top:24px!important}
+  .title{margin-bottom:24px}
+
+  .chartSection>.plot{height:78dvh;min-height:560px;margin:34px 0 20px}
+  .chartSection>.stream{height:110dvh;min-height:760px;margin:34px 0 28px}
+  .home article>div{max-height:none;overflow:visible;overscroll-behavior:auto}
+}
+@media(orientation:portrait) and (max-width:560px){.chartSection>.stream{height:120dvh;min-height:820px}}
+
+/* The development badge is replaced by the portrait navigation control. */
+nextjs-portal{display:none!important}
+.portraitMenuButton{display:none}
+
+@media(orientation:portrait){
+  body:has(.portraitMenuOpen){overflow:hidden}
+  .portraitMenuButton{
+    position:fixed;display:grid;place-content:center;gap:4px;left:18px;bottom:18px;z-index:42;
+    width:58px;height:58px;padding:0;border:1px solid #ffffffc7;border-radius:50%;
+    background:rgba(248,246,240,.88);box-shadow:inset 0 1px #fff,0 12px 34px #24334d32;
+    backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25);
+    transition:transform .48s cubic-bezier(.2,1.45,.32,1),background .25s,box-shadow .25s
+  }
+  .portraitMenuButton:hover{transform:scale(1.06)}
+  .portraitMenuButton i{display:block;width:22px;height:2px;border-radius:2px;background:#171713;transition:transform .42s cubic-bezier(.2,1.45,.32,1),opacity .2s,width .3s}
+  .portraitMenuOpen .portraitMenuButton{transform:rotate(90deg);background:rgba(248,246,240,.94);box-shadow:inset 0 1px #fff,0 16px 45px #1b233547}
+  .portraitMenuOpen .portraitMenuButton i:first-child{transform:translateY(6px) rotate(45deg)}
+  .portraitMenuOpen .portraitMenuButton i:nth-child(2){width:0;opacity:0}
+  .portraitMenuOpen .portraitMenuButton i:last-child{transform:translateY(-6px) rotate(-45deg)}
+}
+
+@media(orientation:portrait) and (prefers-reduced-motion:reduce){
+  .portraitMenuButton,.portraitMenuButton i,.tagTools:not(.basketTools),.viewSwitch,.timelineTools,.axes,.sorter,.genreDirectory,.basketDirectory,.basketTools{transition:none}
+}
+
+/* One page layer and one menu layer; this supersedes the earlier per-control portrait patches. */
+.pageSurface{transition:filter .42s ease,opacity .42s ease}
+.pageSurface>section{width:min(1480px,94vw);margin:auto;padding:65px 0 120px;min-height:80vh}
+.portraitMenuLayer{display:contents}
+@media(orientation:portrait){
+  .pageSurface>section{width:92vw;padding:24px 0 72px}
+  .portraitMenuOpen .pageSurface{filter:blur(12px);opacity:.38;pointer-events:none}
+  .portraitMenuOpen .pageSurface *{filter:none!important}
+  .portraitMenuLayer{
+    position:fixed;display:flex;flex-direction:column-reverse;align-items:stretch;gap:0;
+    left:18px;bottom:86px;z-index:39;width:calc(100vw - 36px);max-height:calc(100dvh - 112px);
+    overflow:visible;pointer-events:none;visibility:hidden;opacity:0;
+    transform:translate(-18px,28px) rotate(-9deg) scale(.82);transform-origin:29px calc(100% + 63px);
+    clip-path:circle(0 at 29px calc(100% + 63px));
+    transition:transform .56s cubic-bezier(.16,1.3,.3,1),clip-path .5s cubic-bezier(.18,.84,.28,1),opacity .22s,visibility 0s linear .5s
+  }
+  .portraitMenuOpen .portraitMenuLayer{
+    pointer-events:auto;visibility:visible;opacity:1;transform:none;
+    clip-path:circle(160% at 29px calc(100% + 63px));transition-delay:0s
+  }
+  .portraitMenuLayer>.tagTools:not(.basketTools),.portraitMenuLayer>.viewSwitch,
+  .portraitMenuLayer>.timelineTools,.portraitMenuLayer>.axes,.portraitMenuLayer>.sorter,
+  .portraitMenuLayer>.genreDirectory,.portraitMenuLayer>.basketDirectory,.portraitMenuLayer>.basketTools{
+    position:static!important;inset:auto!important;flex:0 0 auto;width:100%!important;max-height:none!important;
+    margin:0!important;padding:6px 0!important;overflow:visible!important;visibility:visible!important;opacity:1!important;
+    transform:none!important;clip-path:none!important;border:0!important;border-radius:0!important;
+    background:transparent!important;box-shadow:none!important;filter:none!important;
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important;transition:none!important
+  }
+  .portraitMenuLayer>.sorterOptions{max-height:none!important;overflow:visible!important}
+  .portraitMenuLayer>.timelineTools,.portraitMenuLayer>.axes,.portraitMenuLayer>.sorter,
+  .portraitMenuLayer>.genreDirectory,.portraitMenuLayer>.basketDirectory,.portraitMenuLayer>.basketTools{padding-bottom:14px!important}
+  .portraitMenuLayer .sorterOptions,.portraitMenuLayer .axes>div:last-child{padding-bottom:14px}
+  .choiceCloud{overflow:visible;padding-bottom:18px}
+}
+@media(orientation:portrait) and (max-width:560px){.pageSurface>section{width:calc(100vw - 24px)}}
+
+/* Mobile compositing guardrails: keep the color motion, but avoid repainting
+   oversized blurred/backdrop-filter layers while the browser chrome resizes. */
+@media(orientation:portrait){
+  .ambientBackground{
+    inset:-10vmax;
+    filter:none;
+    background:
+      radial-gradient(ellipse 38% 52% at 17% 25%,#72b5e9d9 0 35%,transparent 72%),
+      radial-gradient(ellipse 42% 38% at 82% 67%,#ef91b9c7 0 34%,transparent 74%),
+      radial-gradient(ellipse 34% 46% at 67% 15%,#f1d46dbd 0 31%,transparent 70%),
+      radial-gradient(ellipse 46% 35% at 28% 84%,#80d8b8c2 0 32%,transparent 72%),
+      linear-gradient(135deg,#c6def1,#f5eee8 48%,#edc8d7);
+    background-blend-mode:screen,screen,screen,screen,normal;
+    animation-duration:28s;
+    will-change:transform;
+    transform:translateZ(0)
+  }
+  .ambientBackground:before,.ambientBackground:after{display:none}
+  .topChrome{
+    background:rgba(244,244,243,.96);
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none
+  }
+  .home article,.home>button,.genreGrid.genreGrid article{
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none
+  }
+
+  /* Keep the overview explorer medium-height and independently scrollable. */
+  .overviewSection .home article>div{
+    height:clamp(340px,56dvh,520px);
+    max-height:clamp(340px,56dvh,520px);
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    touch-action:pan-y
+  }
+  .overviewSection .home article>div::-webkit-scrollbar{display:none}
+}
+
+/* Match genre album density to the portrait theme baskets. */
+.genreGrid article button:nth-child(n+19){display:none}
+@media(orientation:portrait){
+  .genreGrid article>div{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .genreGrid article button:nth-child(n+19){display:block}
+}
+@media(orientation:portrait) and (max-width:560px){
+  .genreGrid article>div{grid-template-columns:repeat(8,minmax(0,1fr))}
+}
