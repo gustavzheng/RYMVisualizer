@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import './album-lab.css';
 import './refinements.css';
 import './lab-v2.css';
@@ -75,12 +75,64 @@ function recolorPaper(e: React.PointerEvent<HTMLElement>) {
     const choices = choiceColors.filter(color => color !== current);
     button.style.setProperty('--choice-color', choices[Math.floor(Math.random() * choices.length)]);
 }
+function AmbientBackground() {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    useEffect(() => {
+        const canvas = canvasRef.current, gl = canvas?.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' });
+        if (!canvas || !gl) return;
+        const vertexSource = `attribute vec2 p;varying vec2 uv;void main(){uv=p*.5+.5;gl_Position=vec4(p,0.,1.);}`;
+        const fragmentSource = `precision mediump float;varying vec2 uv;uniform float aspect;uniform float colorLightness;uniform float colorChroma;uniform vec2 centers[4];
+vec3 oklabToSrgb(vec3 c){float l=c.x+.3963377774*c.y+.2158037573*c.z,m=c.x-.1055613458*c.y-.0638541728*c.z,s=c.x-.0894841775*c.y-1.291485548*c.z;l=l*l*l;m=m*m*m;s=s*s*s;vec3 rgb=vec3(4.0767416621*l-3.3077115913*m+.2309699292*s,-1.2684380046*l+2.6097574011*m-.3413193965*s,-.0041960863*l-.7034186147*m+1.707614701*s);vec3 lo=12.92*rgb,hi=1.055*pow(max(rgb,vec3(0.)),vec3(1./2.4))-.055;return clamp(mix(lo,hi,step(vec3(.0031308),rgb)),0.,1.);}
+float field(vec2 point,vec2 center,vec2 radius){vec2 d=(point-center)/radius;return exp(-2.35*dot(d,d));}
+void main(){vec2 q=vec2(uv.x*aspect,uv.y);vec3 base=mix(vec3(.9138,-.0213,-.0404),vec3(.9134,.0511,-.0073),smoothstep(0.,1.,uv.x*.65+uv.y*.35));vec3 c0=vec3(colorLightness,colorChroma*vec2(-.4255,-.9049)),c1=vec3(colorLightness,colorChroma*vec2(.9975,-.0712)),c2=vec3(colorLightness,colorChroma*vec2(-.0792,.9969)),c3=vec3(colorLightness,colorChroma*vec2(-.9620,.2730));float w0=field(q,centers[0],vec2(.48*aspect,.43)),w1=field(q,centers[1],vec2(.52*aspect,.39)),w2=field(q,centers[2],vec2(.45*aspect,.46)),w3=field(q,centers[3],vec2(.54*aspect,.38));float bw=.72,total=bw+w0+w1+w2+w3;float lightness=(base.x*bw+colorLightness*(w0+w1+w2+w3))/total;vec2 hueVector=(base.yz*bw+c0.yz*w0+c1.yz*w1+c2.yz*w2+c3.yz*w3)/total;float chroma=(length(base.yz)*bw+colorChroma*(w0+w1+w2+w3))/total;float hueLength=length(hueVector);vec2 ab=hueLength>.0001?hueVector*(chroma/hueLength):vec2(0.);gl_FragColor=vec4(oklabToSrgb(vec3(lightness,ab)),1.);}`;
+        const compile = (type: number, source: string) => { const shader = gl.createShader(type)!; gl.shaderSource(shader, source); gl.compileShader(shader); return shader; };
+        const vertex = compile(gl.VERTEX_SHADER, vertexSource), fragment = compile(gl.FRAGMENT_SHADER, fragmentSource), program = gl.createProgram()!;
+        gl.attachShader(program, vertex); gl.attachShader(program, fragment); gl.linkProgram(program); gl.useProgram(program);
+        const buffer = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+        const position = gl.getAttribLocation(program, 'p'); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+        const aspectLocation = gl.getUniformLocation(program, 'aspect'), centersLocation = gl.getUniformLocation(program, 'centers[0]');
+        const backgroundStyle = getComputedStyle(canvas), lightnessValue = Number.parseFloat(backgroundStyle.getPropertyValue('--ambient-lightness')) || .84, chromaValue = Number.parseFloat(backgroundStyle.getPropertyValue('--ambient-chroma')) || .16;
+        gl.uniform1f(gl.getUniformLocation(program, 'colorLightness'), lightnessValue); gl.uniform1f(gl.getUniformLocation(program, 'colorChroma'), chromaValue);
+        const mobile = matchMedia('(pointer: coarse)').matches, targetFps = mobile ? 30 : 60;
+        const desktopPixels = Math.max(innerWidth, innerHeight) * Math.min(devicePixelRatio, 1.25), baseMaxDimension = mobile ? 1080 : Math.min(2560, desktopPixels);
+        const centers = new Float32Array(8);
+        let frame = 0, previous = 0, lastRaf = 0, sampleTime = 0, sampleCount = 0, quality = 1, start = performance.now(), active = !document.hidden;
+        const resize = () => { const width = innerWidth, height = innerHeight, limit = baseMaxDimension * quality, scale = Math.min(devicePixelRatio, limit / Math.max(width, height)); canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale)); canvas.style.width = `${width}px`; canvas.style.height = `${height}px`; gl.viewport(0, 0, canvas.width, canvas.height); };
+        const render = (now: number) => { const t = (now - start) / 1000, a = canvas.width / canvas.height; centers.set([(.5+.31*Math.sin(t*.61))*a,.5+.30*Math.cos(t*.47),(.5+.32*Math.cos(t*.43+1.7))*a,.5+.29*Math.sin(t*.57+.4),(.5+.30*Math.sin(t*.53+3.1))*a,.5+.31*Math.cos(t*.39+2),(.5+.33*Math.cos(t*.49+4.4))*a,.5+.28*Math.sin(t*.45+3.6)]); gl.uniform1f(aspectLocation, a); gl.uniform2fv(centersLocation, centers); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
+        const draw = (now: number) => { if (!active) return; frame = requestAnimationFrame(draw); if (lastRaf) { sampleTime += now - lastRaf; sampleCount++; } lastRaf = now; if (!mobile && sampleCount >= 120) { const average = sampleTime / sampleCount, next = average > 20 ? Math.max(.55, quality - .1) : average < 17 ? Math.min(1, quality + .05) : quality; sampleTime = 0; sampleCount = 0; if (next !== quality) { quality = next; resize(); } } if (now - previous < 1000 / targetFps - 1) return; previous = now; render(now); };
+        const motion = matchMedia('(prefers-reduced-motion: reduce)');
+        const visibility = () => { active = !document.hidden; cancelAnimationFrame(frame); if (active) { start = performance.now(); previous = 0; lastRaf = 0; sampleTime = 0; sampleCount = 0; if (motion.matches) render(start); else frame = requestAnimationFrame(draw); } };
+        resize(); addEventListener('resize', resize); document.addEventListener('visibilitychange', visibility);
+        render(start); if (!motion.matches) frame = requestAnimationFrame(draw);
+        return () => { active = false; cancelAnimationFrame(frame); removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility); gl.deleteBuffer(buffer); gl.deleteProgram(program); gl.deleteShader(vertex); gl.deleteShader(fragment); };
+    }, []);
+    return <canvas ref={canvasRef} className="ambientBackground" aria-hidden="true"/>;
+}
 export default function AlbumLab() {
-    const [all, setAll] = useState<Album[]>([]), [tab, setTab] = useState(0), [focus, setFocus] = useState<Album | null>(null), [filtersOpen, setFiltersOpen] = useState(false), [tabsCollapsed, setTabsCollapsed] = useState(false), [portraitMenuOpen, setPortraitMenuOpen] = useState(false);
+    const [all, setAll] = useState<Album[]>([]), [tab, setTab] = useState(0), [ready, setReady] = useState(false), [focus, setFocus] = useState<Album | null>(null), [filtersOpen, setFiltersOpen] = useState(false), [tabsCollapsed, setTabsCollapsed] = useState(false), [portraitMenuOpen, setPortraitMenuOpen] = useState(false);
     const restoreMenuControls=useRef<null|(()=>void)>(null);
     const [q, setQ] = useState(''), [gs, setGs] = useState<string[]>([]), [ts, setTs] = useState<string[]>([]), [gm, setGm] = useState<Mode>('any'), [tm, setTm] = useState<Mode>('any'), [sorts,setSorts]=useState<SortKey[]>([]);
-    useEffect(() => { fetch('/data/albums.json').then(r => r.json() as Promise<Album[]>).then(setAll); const saved = Number(localStorage.getItem('chroma-tab')); if (Number.isInteger(saved) && saved >= 0 && saved < 8)
-        setTab(saved); }, []);
+    useEffect(() => {
+        let cancelled = false;
+        const saved = Number(localStorage.getItem('chroma-tab'));
+        const restoredTab = Number.isInteger(saved) && saved >= 0 && saved < 8 ? saved : 0;
+        fetch('/data/albums.json')
+            .then(response => {
+                if (!response.ok) throw new Error(`Album data request failed: ${response.status}`);
+                return response.json() as Promise<Album[]>;
+            })
+            .then(albums => {
+                if (cancelled) return;
+                setTab(restoredTab);
+                setAll(albums);
+                requestAnimationFrame(() => setReady(true));
+            })
+            .catch(error => {
+                console.error(error);
+                if (!cancelled) setReady(true);
+            });
+        return () => { cancelled = true; };
+    }, []);
     useEffect(() => {
         let touchY = 0;
         const portrait = window.matchMedia('(orientation: portrait)');
@@ -121,16 +173,16 @@ export default function AlbumLab() {
         restoreMenuControls.current=restore;
         return()=>{restore();if(restoreMenuControls.current===restore)restoreMenuControls.current=null;};
     },[tab]);
-    const chooseTab = (n: number) => { if (n === 8) { window.location.assign('/relations'); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; setTab(n); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
+    const chooseTab = (n: number) => { if (n === 8) { window.location.assign('/relations'); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; startTransition(() => setTab(n)); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
     const handlePageClick = (event: React.MouseEvent<HTMLElement>) => {
         if ((event.target as HTMLElement).closest('.genreDirectory button,.basketDirectory button')) setPortraitMenuOpen(false);
     };
     const genres = useMemo(() => count(all.flatMap(a => [...new Set(a.genres)])), [all]);
     const tags = useMemo(() => count(all.flatMap(a => [...new Set(a.descriptors)])), [all]);
     const data = useMemo(() => all.filter(a => match(a.genres, gs, gm) && match(a.descriptors, ts, tm) && (!q || `${a.title} ${a.artist}`.toLowerCase().includes(q.toLowerCase()))), [all, gs, ts, gm, tm, q]);
-    return <main className={portraitMenuOpen ? 'portraitMenuOpen' : ''} onClick={handlePageClick} onPointerDown={recolorPaper}><div className="ambientBackground" aria-hidden="true"/><div className="pageSurface"><div className={'topChrome ' + (tabsCollapsed ? 'tabsCollapsed' : '')}><header><b>◉ CHROMA <small>MUSIC DATA ATLAS</small></b><nav>{tabs.map((x, i) => <button className={tab === i ? 'active' : ''} onClick={() => chooseTab(i)} key={x}>{String(i).padStart(2, '0')} <b>{x}</b></button>)}</nav><span>{data.length} / {all.length} ALBUMS</span><button className="filterButton" onClick={() => setFiltersOpen(!filtersOpen)}>筛选 · {gs.length + ts.length} {filtersOpen ? '−' : '＋'}</button></header>
+    return <main className={portraitMenuOpen ? 'portraitMenuOpen' : ''} onClick={handlePageClick} onPointerDown={recolorPaper}><AmbientBackground/><div className={`pageSurface ${ready ? 'ready' : 'loading'}`}><div className={'topChrome ' + (tabsCollapsed ? 'tabsCollapsed' : '')}><header><b>◉ CHROMA <small>MUSIC DATA ATLAS</small></b><nav>{tabs.map((x, i) => <button className={tab === i ? 'active' : ''} onClick={() => chooseTab(i)} key={x}>{String(i).padStart(2, '0')} <b>{x}</b></button>)}</nav><span>{data.length} / {all.length} ALBUMS</span><button className="filterButton" onClick={() => setFiltersOpen(!filtersOpen)}>筛选 · {gs.length + ts.length} {filtersOpen ? '−' : '＋'}</button></header>
     <aside className={'filters ' + (filtersOpen ? 'open' : '')}><div><input value={q} onChange={e => setQ(e.target.value)} placeholder="搜索专辑 / 艺术家"/><button onClick={() => setQ('')}>清空搜索</button></div><Group title="流派" list={genres} sel={gs} set={setGs} mode={gm} setMode={setGm}/><Group title="标签" list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm}/></aside></div>
-    <section className={tab === 0 ? 'overviewSection' : tab >= 3 && tab <= 5 ? 'chartSection' : undefined}><Title n={tab} title={tabs[tab]}/>{tab === 0 && <Home data={data} go={chooseTab} open={setFocus}/>} {tab === 1 && <Genres data={data} list={genres} sel={gs} set={setGs} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 2 && <Tags data={data} list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 3 && <ScatterOverview data={data} open={setFocus}/>} {tab === 4 && <Timeline data={data} genres={genres} tags={tags} open={setFocus}/>} {tab === 5 && <Visual data={data} open={setFocus}/>} {tab === 6 && <BasketView data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 7 && <Grid data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>}</section></div>
+    <section className={tab === 0 ? 'overviewSection' : tab >= 3 && tab <= 5 ? 'chartSection' : undefined}><Title n={tab} title={tabs[tab]}/>{tab === 0 && <Home data={data} go={chooseTab} open={setFocus}/>} {tab === 1 && <Genres data={data} list={genres} sel={gs} set={setGs} mode={gm} setMode={setGm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 2 && <Tags data={data} list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 3 && <ScatterOverview data={data} open={setFocus}/>} {tab === 4 && <Timeline data={data} genres={genres} tags={tags} open={setFocus}/>} {tab === 5 && <Visual data={data} open={setFocus}/>} {tab === 6 && <BasketView data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 7 && <Grid data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>}</section></div>
     <div id="portrait-menu-layer" className="portraitMenuLayer"/>
     {tab > 0 && <button className="portraitMenuButton" aria-label={portraitMenuOpen ? '关闭页面菜单' : '打开页面菜单'} aria-expanded={portraitMenuOpen} onClick={() => setPortraitMenuOpen(open => !open)}><i/><i/><i/></button>}
     {focus && <Detail a={focus} close={() => setFocus(null)}/>}</main>;
@@ -154,7 +206,32 @@ function Home({ data, go, open }: {
     data: Album[];
     go: (n: number) => void;
     open: (a: Album) => void;
-}) { const [draw,setDraw]=useState(0), sample = useMemo(() => [...data].sort((a,b)=>hash01(a.id,draw+101)-hash01(b.id,draw+101)), [data,draw]); return <div className="home"><article><b>{data.length}</b><span>张专辑等待探索 · 点击封面查看详情</span><button className="redraw" onClick={()=>setDraw(n=>n+1)}>↻ 重抽</button><div>{sample.map(a => <button key={a.id} onClick={() => open(a)} aria-label={`查看 ${a.title}`}><img src={a.cover} alt=""/></button>)}</div></article>{[1, 2, 3, 4, 5, 6, 7, 8].map(i => <button key={i} onClick={() => go(i)} style={{ '--card-tint': colors[i % colors.length] } as React.CSSProperties}><b>0{i}</b><h2>{tabs[i]}</h2><span>{i === 8 ? '全屏打开 →' : '进入视图 →'}</span></button>)}</div>; }
+}) {
+    const [draw,setDraw]=useState(0), [coverLayout,setCoverLayout]=useState({columns:9,size:0});
+    const coverGrid=useRef<HTMLDivElement>(null);
+    const sample = useMemo(() => [...data].sort((a,b)=>hash01(a.id,draw+101)-hash01(b.id,draw+101)), [data,draw]);
+    useEffect(()=>{
+        const grid=coverGrid.current;
+        if(!grid)return;
+        const orientation=window.matchMedia('(orientation: landscape)');
+        const measure=()=>{
+            if(!orientation.matches){setCoverLayout(current=>current.size?{columns:9,size:0}:current);return;}
+            const style=getComputedStyle(grid), gap=parseFloat(style.rowGap)||4, rows=8;
+            const size=Math.max(1,(grid.clientHeight-gap*(rows-1)-2)/rows);
+            const columns=Math.max(1,Math.floor((grid.clientWidth+gap)/(size+gap)));
+            setCoverLayout(current=>current.columns===columns&&Math.abs(current.size-size)<.1?current:{columns,size});
+        };
+        const observer=new ResizeObserver(measure);
+        observer.observe(grid);
+        orientation.addEventListener('change',measure);
+        return()=>{observer.disconnect();orientation.removeEventListener('change',measure);};
+    },[]);
+    const landscapeGridStyle = coverLayout.size ? {
+        '--cover-size':`${coverLayout.size}px`,
+        '--cover-columns':coverLayout.columns
+    } as React.CSSProperties : undefined;
+    return <div className="home"><article><b>{data.length}</b><span>张专辑等待探索 · 点击封面查看详情</span><button className="redraw" onClick={()=>setDraw(n=>n+1)}>↻ 重抽</button><div ref={coverGrid} style={landscapeGridStyle}>{sample.slice(0,coverLayout.size?coverLayout.columns*8:undefined).map(a => <button key={a.id} onClick={() => open(a)} aria-label={`查看 ${a.title}`}><img src={a.cover} alt=""/></button>)}</div></article>{[1, 2, 3, 4, 5, 6, 7, 8].map(i => <button key={i} onClick={() => go(i)} style={{ '--card-tint': colors[i % colors.length] } as React.CSSProperties}><b>0{i}</b><h2>{tabs[i]}</h2><span>{i === 8 ? '全屏打开 →' : '进入视图 →'}</span></button>)}</div>;
+}
 function cloudStyle(key: string) { let n = 2166136261; for (const c of key)
     n = Math.imul(n ^ c.charCodeAt(0), 16777619); const r = (shift: number) => ((n >>> shift) & 255) / 255; return { fontSize: `${12 + r(0) * 5}px`, transform: `rotate(${(-2.8 + r(8) * 5.6).toFixed(1)}deg)`, '--choice-color': choiceColors[(n >>> 16) % choiceColors.length] } as React.CSSProperties; }
 function ChoiceCloud({ list, sel, set, limit = 120 }: {
@@ -165,8 +242,8 @@ function ChoiceCloud({ list, sel, set, limit = 120 }: {
     sel: string[];
     set: (x: string[]) => void;
     limit?: number;
-}) { const [seed, setSeed] = useState(''); useEffect(() => setSeed(String(Math.random())), []); return <div className="choiceCloud">{list.slice(0, limit).map(([x, n]) => <button style={cloudStyle(x + seed)} className={sel.includes(x) ? 'active' : ''} onClick={() => set(sel.includes(x) ? sel.filter(v => v !== x) : [...sel, x])} key={x}>{x}<sup>{n}</sup></button>)}</div>; }
-function Genres({ data, list, sel, set, open, sorts, setSorts }: {
+}) { return <div className="choiceCloud">{list.slice(0, limit).map(([x, n]) => <button style={cloudStyle(x)} className={sel.includes(x) ? 'active' : ''} onClick={() => set(sel.includes(x) ? sel.filter(v => v !== x) : [...sel, x])} key={x}>{x}<sup>{n}</sup></button>)}</div>; }
+function Genres({ data, list, sel, set, mode, setMode, open, sorts, setSorts }: {
     data: Album[];
     list: [
         string,
@@ -174,10 +251,12 @@ function Genres({ data, list, sel, set, open, sorts, setSorts }: {
     ][];
     sel: string[];
     set: (x: string[]) => void;
+    mode: Mode;
+    setMode: (x: Mode) => void;
     open: (a: Album) => void;
     sorts: SortKey[];
     setSorts: (sorts: SortKey[]) => void;
-}) { const [optionsExpanded, setOptionsExpanded] = useState(false), [gridExpanded, setGridExpanded] = useState(false), [active,setActive]=useState(0), sections=[['genre-options','流派选项'],['genre-baskets','流派篮子'],['genre-results','筛选结果']], jump=(id:string,i:number)=>{setActive(i);document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}; return <div className="genrePage"><nav className="genreDirectory" aria-label="流派星系章节">{sections.map(([id,label],i)=><button className={active===i?'active':''} onClick={()=>jump(id,i)} key={id}>{label}</button>)}</nav><div id="genre-options" className="expandStage"><ChoiceCloud list={list} sel={sel} set={set} limit={optionsExpanded ? list.length : 72}/><button className={`expandButton ${optionsExpanded ? 'expanded' : ''}`} onClick={() => setOptionsExpanded(!optionsExpanded)}>{optionsExpanded ? '收起选项 ↑' : '展开全部流派 ↓'}</button></div><div id="genre-baskets" className="basketStage"><div className="genreGrid">{list.slice(0, gridExpanded ? list.length : 48).map(([g], i) => { const albums = data.filter(a => a.genres.includes(g)); return <article key={g} style={{ '--basket-tint': colors[i % colors.length] } as React.CSSProperties}><h2>{g}</h2><span>{albums.length} 张</span><div>{albums.slice(0, 24).map(a => <button onClick={() => open(a)} key={a.id}><img src={a.cover} alt=""/></button>)}</div></article>; })}</div><button className={`expandButton gridToggle ${gridExpanded ? 'expanded' : ''}`} onClick={() => setGridExpanded(!gridExpanded)}>{gridExpanded ? '折叠流派篮子 ↑' : `展开全部流派篮子 · ${list.length} ↓`}</button></div><div id="genre-results"><ResultGrid data={data} open={open} sorts={sorts} setSorts={setSorts}/></div></div>; }
+}) { const [optionsExpanded, setOptionsExpanded] = useState(false), [gridExpanded, setGridExpanded] = useState(false), [active,setActive]=useState(0), sections=[['genre-options','流派选项'],['genre-baskets','流派篮子'],['genre-results','筛选结果']], baskets=list.map(([g])=>({genre:g,albums:data.filter(a=>a.genres.includes(g))})).filter(b=>b.albums.length), toggleGenre=(g:string)=>set(sel.includes(g)?sel.filter(x=>x!==g):[...sel,g]), jump=(id:string,i:number)=>{setActive(i);document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}; return <div className="genrePage"><nav className="genreDirectory" aria-label="流派星系章节">{sections.map(([id,label],i)=><button className={active===i?'active':''} onClick={()=>jump(id,i)} key={id}>{label}</button>)}</nav><div className="tagTools paperRail"><button className={mode === 'any' ? 'active' : ''} onClick={() => setMode('any')}>并集</button><button className={mode === 'all' ? 'active' : ''} onClick={() => setMode('all')}>交集</button><button onClick={() => set([])}>清空流派</button></div><div id="genre-options" className="expandStage"><ChoiceCloud list={list} sel={sel} set={set} limit={optionsExpanded ? list.length : 72}/><button className={`expandButton ${optionsExpanded ? 'expanded' : ''}`} onClick={() => setOptionsExpanded(!optionsExpanded)}>{optionsExpanded ? '收起选项 ↑' : '展开全部流派 ↓'}</button></div><div id="genre-baskets" className="basketStage"><div className="genreGrid">{baskets.slice(0, gridExpanded ? baskets.length : 48).map(({genre:g,albums}, i) => { const selected=sel.includes(g); return <article key={g} role="button" tabIndex={0} aria-pressed={selected} className={selected?'active':''} onClick={()=>toggleGenre(g)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleGenre(g)}}} style={{ '--basket-tint': colors[i % colors.length] } as React.CSSProperties}><h2>{g}</h2><span>{albums.length} 张</span><div>{albums.slice(0, 24).map(a => <button onClick={e => {e.stopPropagation();open(a)}} key={a.id}><img src={a.cover} alt=""/></button>)}</div></article>})}</div><button className={`expandButton gridToggle ${gridExpanded ? 'expanded' : ''}`} onClick={() => setGridExpanded(!gridExpanded)}>{gridExpanded ? '折叠流派篮子 ↑' : `展开全部流派篮子 · ${baskets.length} ↓`}</button></div><div id="genre-results"><ResultGrid data={data} open={open} sorts={sorts} setSorts={setSorts}/></div></div>; }
 function Tags({ data, list, sel, set, mode, setMode, open, sorts, setSorts }: {
     data: Album[];
     list: [
@@ -191,7 +270,7 @@ function Tags({ data, list, sel, set, mode, setMode, open, sorts, setSorts }: {
     open: (a: Album) => void;
     sorts: SortKey[];
     setSorts: (sorts: SortKey[]) => void;
-}) { const shown = data.filter(a => match(a.descriptors, sel, mode)), [expanded, setExpanded] = useState(false); return <div className="tagPage"><div className="tagTools paperRail"><button className={mode === 'any' ? 'active' : ''} onClick={() => setMode('any')}>并集</button><button className={mode === 'all' ? 'active' : ''} onClick={() => setMode('all')}>交集</button><button onClick={() => set([])}>清空标签</button></div><div className="expandStage"><ChoiceCloud list={list} sel={sel} set={set} limit={expanded ? list.length : 72}/><button className={`expandButton ${expanded ? 'expanded' : ''}`} onClick={() => setExpanded(!expanded)}>{expanded ? '收起标签 ↑' : `展开全部标签 · ${list.length} ↓`}</button></div><ResultGrid data={shown} open={open} sorts={sorts} setSorts={setSorts}/><TagMatrix data={data} list={list}/></div>; }
+}) { const shown = data.filter(a => match(a.descriptors, sel, mode)), [expanded, setExpanded] = useState(false), [active,setActive]=useState(0), sections=[['tag-options','标签选项'],['tag-results','筛选结果'],['tag-matrix','年代矩阵']], jump=(id:string,i:number)=>{setActive(i);document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}; return <div className="tagPage"><nav className="genreDirectory" aria-label="标签语义章节">{sections.map(([id,label],i)=><button className={active===i?'active':''} onClick={()=>jump(id,i)} key={id}>{label}</button>)}</nav><div className="tagTools paperRail"><button className={mode === 'any' ? 'active' : ''} onClick={() => setMode('any')}>并集</button><button className={mode === 'all' ? 'active' : ''} onClick={() => setMode('all')}>交集</button><button onClick={() => set([])}>清空标签</button></div><div id="tag-options" className="expandStage"><ChoiceCloud list={list} sel={sel} set={set} limit={expanded ? list.length : 72}/><button className={`expandButton ${expanded ? 'expanded' : ''}`} onClick={() => setExpanded(!expanded)}>{expanded ? '收起标签 ↑' : `展开全部标签 · ${list.length} ↓`}</button></div><div id="tag-results"><ResultGrid data={shown} open={open} sorts={sorts} setSorts={setSorts}/></div><div id="tag-matrix"><TagMatrix data={data} list={list}/></div></div>; }
 function ResultGrid({ data, open, sorts, setSorts }: {
     data: Album[];
     open: (a: Album) => void;
