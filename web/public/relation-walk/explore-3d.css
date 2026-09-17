@@ -1,0 +1,8 @@
+.three-network-shell{background:radial-gradient(circle at 50% 45%,#302e28 0,#151411 46%,#090908 78%)}
+.three-viewport{position:absolute;inset:0;overflow:hidden;touch-action:none}
+.three-viewport canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+body .focus-image-button.crop-source-view{touch-action:none}
+.three-viewport canvas:active{cursor:grabbing}
+.node-tooltip{position:absolute;z-index:8;max-width:220px;padding:7px 10px;border:1px solid #ffffff2e;border-radius:7px;background:#11110fe8;color:#fff;font-size:11px;line-height:1.45;pointer-events:none;transform:translate(12px,12px);box-shadow:0 8px 24px #0008}
+.node-tooltip[hidden]{display:none}
+

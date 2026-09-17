@@ -572,3 +572,9 @@ nextjs-portal{display:none!important}
   backdrop-filter:blur(28px) saturate(1.35)!important;
   -webkit-backdrop-filter:blur(28px) saturate(1.35)!important;
 }
+
+/* Portrait overview keeps its existing five-column scroller, capped at 12 rows. */
+@media(orientation:portrait){.overviewSection .home article>div>button:nth-child(n+61){display:none}}
+
+/* The tag-period matrix is intentionally neutral; density is shown by opacity only. */
+.tagPage .matrix>div>i{background:#fff;color:#171713}

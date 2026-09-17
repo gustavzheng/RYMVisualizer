@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:relation-walk": "node scripts/build-relation-walk.mjs",
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
@@ -24,6 +25,7 @@
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "esbuild": "^0.28.2",
     "typescript": "5.9.3"
   },
   "type": "module"
