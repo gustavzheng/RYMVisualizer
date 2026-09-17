@@ -61,6 +61,7 @@ const choiceColors = ['#f0b6ad', '#b8c9ef', '#c8b6e8', '#b9d9ca', '#efd39c', '#e
 const names: Record<Metric, string> = { brightness: '亮度', contrast: '明暗对比', saturation: '饱和度', detail: '细节密度', entropy: '视觉熵', warmth: '色温', colorfulness: '色彩丰富度', symmetry: '水平对称', darkRatio: '暗部占比', lightRatio: '亮部占比', hue: '主题色相' };
 const metrics = Object.keys(names) as Metric[];
 const accent = (a: Album) => a.visual.accent ?? a.visual.palette.find(c => c.s >= 22 && c.l >= 12 && c.l <= 88) ?? a.visual.dominant;
+const paletteDisplayWeight = (weight: number) => Math.log1p(24 * Math.max(0, weight));
 const hue = (a: Album) => accent(a).h;
 const value = (a: Album, m: Metric) => m === 'hue' ? hue(a) / 3.6 : a.visual[m];
 const count = (xs: string[]) => Object.entries(xs.reduce((m, v) => (m[v] = (m[v] || 0) + 1, m), {} as Record<string, number>)).sort((a, b) => b[1] - a[1]) as [
@@ -369,17 +370,14 @@ function Visual({ data, open }: {
     open: (a: Album) => void;
 }) {
     const [x, setX] = useState<Metric>('hue'), [y, setY] = useState<Metric>('detail'), [axesOpen, setAxesOpen] = useState(false);
-    const spreadMetrics = new Set<Metric>(['hue', 'entropy', 'detail', 'symmetry']);
+    const spreadMetrics = new Set<Metric>(['entropy', 'detail', 'symmetry']);
+    const visualValue = (a: Album, m: Metric) => m === 'hue' ? hue(a) : value(a, m);
     const ordered = useMemo(() => new Map(metrics.map(m => {
-        const albums = [...data].sort((a, b) => value(a, m) - value(b, m));
+        const albums = [...data].sort((a, b) => visualValue(a, m) - visualValue(b, m));
         const ranks = new Map<string, number>();
-        if (m === 'hue') {
-            albums.forEach((album, index) => ranks.set(album.id, index));
-            return [m, {albums, ranks}] as const;
-        }
         for (let start = 0; start < albums.length;) {
             let end = start + 1;
-            while (end < albums.length && value(albums[end], m) === value(albums[start], m)) end++;
+            while (end < albums.length && visualValue(albums[end], m) === visualValue(albums[start], m)) end++;
             const rank = (start + end - 1) / 2;
             for (let i = start; i < end; i++) ranks.set(albums[i].id, rank);
             start = end;
@@ -395,7 +393,7 @@ function Visual({ data, open }: {
         if (spreadMetrics.has(m)) {
             const albums = ordered.get(m)?.albums || [];
             if (!albums.length) return m === 'hue' ? [0, 72, 144, 216, 288, 360] : [0, 20, 40, 60, 80, 100];
-            return Array.from({length: 6}, (_, i) => value(albums[Math.min(albums.length - 1, Math.round(i * (albums.length - 1) / 5))], m));
+            return Array.from({length: 6}, (_, i) => visualValue(albums[Math.min(albums.length - 1, Math.round(i * (albums.length - 1) / 5))], m));
         }
         const [lo, hi] = extent(m);
         return Array.from({length: 6}, (_, i) => lo + (hi - lo) * i / 5);
@@ -405,11 +403,11 @@ function Visual({ data, open }: {
             const rank = ordered.get(m)?.ranks.get(a.id) ?? 0;
             return rank / Math.max(1, data.length - 1) * 94 + 3;
         }
-        const [lo, hi] = extent(m), v = value(a, m);
+        const [lo, hi] = extent(m), v = visualValue(a, m);
         return hi === lo ? 50 : (v - lo) / (hi - lo) * 94 + 3;
     };
     const format = (m: Metric, n: number) => m === 'hue' ? `${Math.round(n)}°` : n.toFixed(1);
-    return <><div className={`axes ${axesOpen ? 'open' : 'collapsed'}`}><button className="axesToggle" aria-expanded={axesOpen} onClick={() => setAxesOpen(v => !v)}><b>坐标选项</b><span>{axesOpen ? '−' : '+'}</span></button><div><b>Y 纵轴</b>{metrics.map(m => <button className={y === m ? 'active' : ''} onClick={() => setY(m)} key={m}>{names[m]}</button>)}</div><button className="axesSwap" onClick={() => { const t = x; setX(y); setY(t); }}>⇄</button><div><b>X 横轴</b>{metrics.map(m => <button className={x === m ? 'active' : ''} onClick={() => setX(m)} key={m}>{names[m]}</button>)}</div></div><div className="plot covers chartPlot"><span className="axisY">{names[y]} →</span><span className="axisX">{names[x]} →</span><Ticks axis="x" values={ticks(x)} format={n => format(x, n)}/><Ticks axis="y" values={ticks(y)} format={n => format(y, n)}/>{data.map(a => <button title={`${a.title} · ${names[x]} ${format(x, value(a, x))} / ${names[y]} ${format(y, value(a, y))}`} onClick={() => open(a)} key={a.id} style={{left: `${pos(a, x)}%`, bottom: `${pos(a, y)}%`}}><img src={a.cover} alt=""/></button>)}</div></>;
+    return <><div className={`axes ${axesOpen ? 'open' : 'collapsed'}`}><button className="axesToggle" aria-expanded={axesOpen} onClick={() => setAxesOpen(v => !v)}><b>坐标选项</b><span>{axesOpen ? '−' : '+'}</span></button><div><b>Y 纵轴</b>{metrics.map(m => <button className={y === m ? 'active' : ''} onClick={() => setY(m)} key={m}>{names[m]}</button>)}</div><button className="axesSwap" onClick={() => { const t = x; setX(y); setY(t); }}>⇄</button><div><b>X 横轴</b>{metrics.map(m => <button className={x === m ? 'active' : ''} onClick={() => setX(m)} key={m}>{names[m]}</button>)}</div></div><div className="plot covers chartPlot"><span className="axisY">{names[y]} →</span><span className="axisX">{names[x]} →</span><Ticks axis="x" values={ticks(x)} format={n => format(x, n)}/><Ticks axis="y" values={ticks(y)} format={n => format(y, n)}/>{data.map(a => <button title={`${a.title} · ${names[x]} ${format(x, visualValue(a, x))} / ${names[y]} ${format(y, visualValue(a, y))}`} onClick={() => open(a)} key={a.id} style={{left: `${pos(a, x)}%`, bottom: `${pos(a, y)}%`}}><img src={a.cover} alt=""/></button>)}</div></>;
 }
 type ClusterKey = Metric | 'year' | 'userRating' | 'communityRating' | 'ratingCount' | 'duration' | 'trackCount' | 'avgTrack' | 'rank' | 'genres' | 'descriptors' | 'artist' | 'language' | 'releaseType';
 const clusterOptions: [ClusterKey,string,string][] = [
@@ -460,4 +458,4 @@ function formatDate(a: Album) { if (!a.releaseDate)
 function Detail({ a, close }: {
     a: Album;
     close: () => void;
-}) { const yearRank = a.ranks.find(r => r.scope === 'year'), overall = a.ranks.find(r => r.scope === 'overall'), lengthClass = a.title.length > 54 ? 'extraLongTitle' : a.title.length > 32 ? 'longTitle' : '', titleClass = [lengthClass, a.title.split(/\s+/).some(word => word.length >= 16) ? 'wideWordTitle' : ''].filter(Boolean).join(' '); return <div className="back" onClick={close}><aside className="detailPanel" style={{ '--accent': accent(a).hex } as React.CSSProperties} onClick={e => e.stopPropagation()}><button className="detailClose" onClick={close}>×</button><div className="detailArt"><img src={a.cover} alt=""/><div className="palette">{a.visual.palette.map((p, i) => <i key={i} style={{ background: p.hex, flex: p.weight }}/>)}</div></div><div className="detailCopy"><small>{formatDate(a)} · {a.releaseType} · {a.language || '无语言信息'}</small><h1 className={titleClass}>{a.title}</h1><h3>{a.artist}</h3><div className="scores"><span><b>{a.userRating || '—'}</b>个人评分 / 10</span><span><b>{a.communityRating || '—'}</b>RYM / 5</span><span><b>{a.ratingCount?.toLocaleString()}</b>评分人数</span><span><b>{a.trackCount}</b>曲目</span><span><b>{a.durationSeconds ? Math.round(a.durationSeconds / 60) : '—'}</b>分钟</span><span><b>{yearRank ? `#${yearRank.position}` : '—'} / {overall ? `#${overall.position}` : '—'}</b>年度 / 历史排名</span></div><h4>流派 · {a.genres.length}</h4><p className="pills">{a.genres.map(x => <i key={x}>{x}</i>)}</p><h4>语义标签 · {a.descriptors.length}</h4><p className="pills">{a.descriptors.map(x => <i key={x}>{x}</i>)}</p><h4>视觉指标</h4><div className="metricBars">{metrics.slice(0, 8).map(m => <span key={m}>{names[m]}<i><b style={{ width: `${value(a, m)}%` }}/></i><em>{value(a, m).toFixed(1)}</em></span>)}</div>{a.url && <a href={a.url} target="_blank" rel="noreferrer">在 RYM 查看 ↗</a>}</div></aside></div>; }
+}) { const yearRank = a.ranks.find(r => r.scope === 'year'), overall = a.ranks.find(r => r.scope === 'overall'), lengthClass = a.title.length > 54 ? 'extraLongTitle' : a.title.length > 32 ? 'longTitle' : '', titleClass = [lengthClass, a.title.split(/\s+/).some(word => word.length >= 16) ? 'wideWordTitle' : ''].filter(Boolean).join(' '); return <div className="back" onClick={close}><aside className="detailPanel" style={{ '--accent': accent(a).hex } as React.CSSProperties} onClick={e => e.stopPropagation()}><button className="detailClose" onClick={close}>×</button><div className="detailArt"><img src={a.cover} alt=""/><div className="palette">{a.visual.palette.map((p, i) => <i key={i} style={{ background: p.hex, flex: paletteDisplayWeight(p.weight) }}/>)}</div></div><div className="detailCopy"><small>{formatDate(a)} · {a.releaseType} · {a.language || '无语言信息'}</small><h1 className={titleClass}>{a.title}</h1><h3>{a.artist}</h3><div className="scores"><span><b>{a.userRating || '—'}</b>个人评分 / 10</span><span><b>{a.communityRating || '—'}</b>RYM / 5</span><span><b>{a.ratingCount?.toLocaleString()}</b>评分人数</span><span><b>{a.trackCount}</b>曲目</span><span><b>{a.durationSeconds ? Math.round(a.durationSeconds / 60) : '—'}</b>分钟</span><span><b>{yearRank ? `#${yearRank.position}` : '—'} / {overall ? `#${overall.position}` : '—'}</b>年度 / 历史排名</span></div><h4>流派 · {a.genres.length}</h4><p className="pills">{a.genres.map(x => <i key={x}>{x}</i>)}</p><h4>语义标签 · {a.descriptors.length}</h4><p className="pills">{a.descriptors.map(x => <i key={x}>{x}</i>)}</p><h4>视觉指标</h4><div className="metricBars">{metrics.slice(0, 8).map(m => <span key={m}>{names[m]}<i><b style={{ width: `${value(a, m)}%` }}/></i><em>{value(a, m).toFixed(1)}</em></span>)}</div>{a.url && <a href={a.url} target="_blank" rel="noreferrer">在 RYM 查看 ↗</a>}</div></aside></div>; }

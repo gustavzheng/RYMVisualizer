@@ -10,7 +10,7 @@ const MAX_PALETTE_SIZE = 12;
 const MIN_WEIGHT = 0.001;
 // About three perceptual just-noticeable differences: collapse shading variants
 // without treating a saturation/chroma change as the same color.
-const MERGE_DISTANCE = 0.055;
+const MERGE_DISTANCE = 0.025;
 const MERGE_CHROMA_DISTANCE = 0.06;
 
 function srgbToLinear(value) {
@@ -55,7 +55,7 @@ function shouldMerge(a, b) {
 
   // Hue is unstable and visually unimportant near black or the neutral axis.
   const darkerLightness = Math.max(a[0], b[0]);
-  const invisibleHueChroma = 0.04 + Math.max(0, 0.3-darkerLightness)*0.12;
+  const invisibleHueChroma = 0.015 + Math.max(0, 0.35-darkerLightness)*0.15;
   const hueIsImperceptible = chromaA < invisibleHueChroma && chromaB < invisibleHueChroma;
   if (hueIsImperceptible && distance < 0.16 && lightnessDifference < 0.18) return true;
 
@@ -154,18 +154,19 @@ function selectDistinctClusters(clusters, total) {
 }
 
 function chooseAccent(palette) {
-  const candidates = palette.filter(color => color.l >= 12 && color.l <= 88 && color.weight >= MIN_WEIGHT);
+  const candidates = palette.filter(color => color.l >= 12 && color.l <= 96 && color.weight >= MIN_WEIGHT);
   return candidates.reduce((best, color) => {
     const score = (color.s/100) * Math.sqrt(color.weight) * (1-Math.abs(color.l-50)/90);
     return !best || score > best.score ? {color, score} : best;
   }, null)?.color ?? palette[0];
 }
 
-function hueDiversity(palette) {
+function hueDiversity(palette, clusters) {
   const hues = palette
-    .filter(color => color.s >= 25 && color.l >= 15 && color.l <= 90 && color.weight >= 0.007)
-    .sort((a,b) => b.s-a.s)
-    .map(color => color.h);
+    .map((color, index) => ({color, lab: clusters[index].lab, chroma: chroma(clusters[index].lab)}))
+    .filter(({color, lab, chroma: value}) => value >= 0.018 && lab[0] >= 0.15 && lab[0] <= 0.98 && color.weight >= 0.007)
+    .sort((a,b) => b.chroma-a.chroma)
+    .map(({lab}) => (Math.atan2(lab[2], lab[1])*180/Math.PI+360)%360);
   const groups = [];
   for (const hue of hues) {
     if (!groups.some(existing => Math.min(Math.abs(existing-hue), 360-Math.abs(existing-hue)) < 30)) groups.push(hue);
@@ -196,7 +197,7 @@ async function extract(cover) {
   const weightTotal = palette.reduce((sum, color) => sum+color.weight, 0);
   palette.forEach(color => { color.weight = Math.round(color.weight/weightTotal*1000)/1000; });
   const accent = chooseAccent(palette);
-  return {dominant: palette[0], accent, palette, chromaticHue: accent.h, hueDiversity: hueDiversity(palette)};
+  return {dominant: palette[0], accent, palette, chromaticHue: accent.h, hueDiversity: hueDiversity(palette, kept)};
 }
 
 const albums = JSON.parse(await fs.readFile(dataPath, 'utf8'));

@@ -3,7 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 const $ = (selector) => document.querySelector(selector);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-const excludedRelationScores = /* @__PURE__ */ new Set(["legs", "faceWidth", "jawWidth", "hairHeight"]);
+const excludedRelationScores = /* @__PURE__ */ new Set();
 const compactRenderer = matchMedia("(max-width: 800px), (pointer: coarse)").matches;
 const simulationTickLimit = compactRenderer ? 720 : 1100;
 const state = { people: [], byId: /* @__PURE__ */ new Map(), focusId: null, selectedId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, positions: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), graphEdges: [], hoverHighlightIds: null, liveCropByImage: /* @__PURE__ */ new Map(), simulationEnergy: 0, simulationFrame: null, cameraFollowCenter: false };
@@ -48,9 +48,9 @@ function rankedNeighbors(person) {
   return state.people.filter((candidate) => candidate.id !== person.id).map((candidate) => ({ person: candidate, distance: comparableDistance(person, candidate) })).sort((a, b) => a.distance - b.distance || a.person.id - b.person.id);
 }
 function relationReason(a, b) {
-  const labels = { torsoWidth: "\u8EAF\u5E72\u5BBD\u5EA6", vtaper: "\u6536\u675F\u7A0B\u5EA6", fullness: "\u808C\u8089\u9971\u6EE1\u5EA6", definition: "\u808C\u8089\u6E05\u6670\u5EA6", beard: "\u80E1\u987B", bodyHair: "\u4F53\u6BDB", tattoo: "\u6587\u8EAB" };
+  const labels = { brightness: "\u5C01\u9762\u4EAE\u5EA6", contrast: "\u5C01\u9762\u5BF9\u6BD4\u5EA6", saturation: "\u5C01\u9762\u9971\u548C\u5EA6", detail: "\u7EC6\u8282\u5BC6\u5EA6", entropy: "\u89C6\u89C9\u590D\u6742\u5EA6", warmth: "\u8272\u6E29", colorfulness: "\u8272\u5F69\u4E30\u5BCC\u5EA6", symmetry: "\u6784\u56FE\u5BF9\u79F0\u5EA6", darkRatio: "\u6697\u8272\u5360\u6BD4", lightRatio: "\u4EAE\u8272\u5360\u6BD4", hue: "\u4E3B\u8272\u76F8", year: "\u53D1\u884C\u5E74\u4EFD", userRating: "\u4E2A\u4EBA\u8BC4\u5206", communityRating: "RYM \u8BC4\u5206" };
   const close = Object.keys(a.scores || {}).filter((key) => !excludedRelationScores.has(key) && Number.isFinite(a.scores[key]) && Number.isFinite(b.scores?.[key])).sort((x, y) => Math.abs(a.scores[x] - b.scores[x]) - Math.abs(a.scores[y] - b.scores[y])).slice(0, 2);
-  return close.length ? close.map((key) => labels[key] || key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4EBA\u7269\u5E93";
+  return close.length ? close.map((key) => labels[key] || key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
 }
 function balancedSeedGroups(members, seeds) {
   const groups = seeds.map((seed) => ({ seed, members: [seed] })), baseSize = Math.floor(members.length / groups.length), remainder = members.length % groups.length, capacities = groups.map((_, index) => baseSize + (index < remainder ? 1 : 0)), pending = members.filter((person) => !seeds.includes(person));
@@ -175,7 +175,7 @@ function createPortraitTexture(person, priority = 0) {
         setTimeout(() => enqueue(attempt + 1), 180 * 2 ** attempt);
       } else {
         texture.userData.loadState = "failed";
-        console.warn(`\u4E09\u7EF4\u5934\u50CF\u7EB9\u7406\u8F7D\u5165\u5931\u8D25\uFF1A${record.image}`);
+        console.warn(`\u4E09\u7EF4\u5C01\u9762\u7EB9\u7406\u8F7D\u5165\u5931\u8D25\uFF1A${record.image}`);
       }
       done();
     };
@@ -423,7 +423,7 @@ function renderFocus() {
   $("#focusImage").alt = person.name;
   $("#focusImageButton").style.background = image.hasTransparentPixels ? image.detailBackground || "#181815" : "#181815";
   $("#imagePosition").textContent = `${index + 1} / ${images.length}`;
-  $("#focusPosition").textContent = `\u4EBA\u7269 ${person.id} \xB7 ${person.id === center.id ? "\u5F53\u524D\u56FE\u4E2D\u5FC3" : "\u4E09\u7EF4\u5173\u8054\u8282\u70B9"}`;
+  $("#focusPosition").textContent = `\u4E13\u8F91 ${person.id} \xB7 ${person.id === center.id ? "\u5F53\u524D\u56FE\u4E2D\u5FC3" : "\u4E09\u7EF4\u5173\u8054\u8282\u70B9"}`;
   $("#focusName").textContent = person.name;
   window.renderAlbumPalette?.(person);
   $("#focusArtist").textContent = person.artist || "";
@@ -455,7 +455,7 @@ function renderRelationPath(person) {
   }
   const chain = relationChain(person.id);
   container.hidden = false;
-  container.innerHTML = `<div class="relation-path-title">\u4ECE\u56FE\u4E2D\u5FC3\u5230\u5F53\u524D\u4EBA\u7269</div>${chain.map((id, index) => {
+  container.innerHTML = `<div class="relation-path-title">\u4ECE\u56FE\u4E2D\u5FC3\u5230\u5F53\u524D\u4E13\u8F91</div>${chain.map((id, index) => {
     const item = state.byId.get(id), previous = index ? state.byId.get(chain[index - 1]) : null;
     return `<div class="relation-step" data-relation-person="${id}"><i class="relation-dot"></i><span><b>${escapeHtml(item.name)}</b><small>${previous ? escapeHtml(relationReason(previous, item)) : "\u56FE\u4E2D\u5FC3"}</small></span></div>`;
   }).join("")}`;
@@ -786,8 +786,8 @@ function bindSearch() {
     const matches = state.people.filter((person) => String(person.id).includes(query) || person.name.toLocaleLowerCase().includes(query)).slice(0, 8);
     results.innerHTML = matches.map((person) => {
       const image = primary(person);
-      return `<button class="search-result" data-search-id="${person.id}"><img src="${image.image}" alt="" style="object-position:${cropPosition(person, image)}"><span>${escapeHtml(person.name)}<small>\u4EBA\u7269 ${person.id}</small></span></button>`;
-    }).join("") || '<div class="search-result">\u6CA1\u6709\u5339\u914D\u4EBA\u7269</div>';
+      return `<button class="search-result" data-search-id="${person.id}"><img src="${image.image}" alt="" style="object-position:${cropPosition(person, image)}"><span>${escapeHtml(person.name)}<small>${person.year ?? "\u672A\u77E5"}</small></span></button>`;
+    }).join("") || '<div class="search-result">\u6CA1\u6709\u5339\u914D\u4E13\u8F91</div>';
     results.hidden = false;
     results.querySelectorAll("[data-search-id]").forEach((button) => button.onclick = () => {
       selectPerson(Number(button.dataset.searchId));
@@ -812,7 +812,7 @@ async function init() {
     const document2 = await response.json();
     state.people = (document2.people || []).filter((person) => person && Number.isInteger(person.id) && person.image);
     state.byId = new Map(state.people.map((person) => [person.id, person]));
-    if (!state.people.length) throw new Error("\u4EBA\u7269\u6863\u6848\u4E3A\u7A7A");
+    if (!state.people.length) throw new Error("\u4E13\u8F91\u6863\u6848\u4E3A\u7A7A");
     initThree();
     bindInteraction();
     bindSearch();
@@ -821,7 +821,7 @@ async function init() {
     $("#exploreApp").setAttribute("aria-busy", "false");
     $("#status").hidden = true;
   } catch (error) {
-    $("#status").textContent = `\u65E0\u6CD5\u8F7D\u5165\u4EBA\u7269\u6863\u6848\uFF1A${error.message}`;
+    $("#status").textContent = `\u65E0\u6CD5\u8F7D\u5165\u4E13\u8F91\u6863\u6848\uFF1A${error.message}`;
     console.error(error);
   }
 }
