@@ -32,7 +32,8 @@
     colors.forEach(color => {
       const swatch = document.createElement('i');
       swatch.style.background = color.hex;
-      swatch.style.flexGrow = String(Math.max(0.035, (Number(color.weight) || 1 / colors.length) / total));
+      swatch.style.flexGrow = String((Number(color.weight) || 1 / colors.length) / total);
+      swatch.style.flexBasis = '0';
       strip.appendChild(swatch);
     });
     if (info) info.prepend(strip);

@@ -597,6 +597,10 @@
     applyTransform();
   }
   function bindInteraction() {
+    $(".back-link").onclick = (event) => {
+      event.preventDefault();
+      window.top.location.assign("/");
+    };
     const viewport = $("#networkViewport");
     viewport.onwheel = (event) => {
       event.preventDefault();

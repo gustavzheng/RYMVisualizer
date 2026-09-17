@@ -87,8 +87,8 @@
 .relation-path{background:var(--focus-glass);border-color:#ffffff73}
 .trail button,.trail img{width:46px!important;height:46px!important;aspect-ratio:1;object-fit:cover}
 .focus-info{display:flex;min-width:0;flex-direction:column}
-.focus-palette{position:relative;z-index:1;display:flex!important;flex:0 0 22px;width:auto;height:22px;gap:5px;margin:16px 30px 0}
-.focus-palette i{display:block;min-width:8px;border:0;border-radius:20px}
+.focus-palette{position:relative;z-index:1;display:flex!important;flex:0 0 22px;width:auto;height:22px;gap:0;margin:16px 30px 0;overflow:hidden;border-radius:20px}
+.focus-palette i{display:block;min-width:0;border:0;border-radius:0}
 .focus-panel-close{z-index:30}
 @media(max-width:800px){
   .network-node.neighbor .portrait{width:112px}
