@@ -7,8 +7,8 @@
     return 1 - intersection / new Set([...left, ...right]).size;
   };
   const metrics = [
-    { key: 'genres', group: 'music', label: '流派类型', weight: 4, hint: '核心维度；按流派标签的 Jaccard 重合度比较', personDistance: tagDistance('genres') },
-    { key: 'descriptors', group: 'music', label: '音乐描述', weight: 2.2, hint: '按情绪、质感与主题标签的 Jaccard 重合度比较', personDistance: tagDistance('descriptors') },
+    { key: 'genres', group: 'music', label: '流派类型', weight: 4, hint: '核心维度；按流派标签的 Jaccard 重合度比较', albumDistance: tagDistance('genres') },
+    { key: 'descriptors', group: 'music', label: '音乐描述', weight: 2.2, hint: '按情绪、质感与主题标签的 Jaccard 重合度比较', albumDistance: tagDistance('descriptors') },
     { key: 'year', group: 'music', label: '发行年份', weight: .25, hint: '辅助维度；相差 60 年视为最远', distance: (a, b) => Math.min(1, Math.abs(a - b) / 60) },
     { key: 'userRating', group: 'music', label: '个人评分', weight: .3, hint: '弱辅助维度；按 10 分制归一', distance: (a, b) => Math.min(1, Math.abs(a - b) / 10) },
     { key: 'communityRating', group: 'music', label: 'RYM 评分', weight: .15, hint: '弱辅助维度；按换算后的 10 分制归一', distance: (a, b) => Math.min(1, Math.abs(a - b) / 10) },
@@ -38,7 +38,7 @@
   }
   function components(a, b) {
     return metrics.filter(metric => settings.enabled[metric.key]).map(metric => {
-      const value = metric.personDistance ? metric.personDistance(a, b) : metricDistance(metric, a.scores?.[metric.key], b.scores?.[metric.key]);
+      const value = metric.albumDistance ? metric.albumDistance(a, b) : metricDistance(metric, a.scores?.[metric.key], b.scores?.[metric.key]);
       return value === null ? null : { ...metric, distance: value };
     }).filter(Boolean);
   }

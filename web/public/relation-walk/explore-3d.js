@@ -5,10 +5,10 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const compactRenderer = matchMedia("(max-width: 800px), (pointer: coarse)").matches;
 const simulationTickLimit = compactRenderer ? 720 : 1100;
-const state = { people: [], byId: /* @__PURE__ */ new Map(), focusId: null, selectedId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, positions: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), graphEdges: [], hoverHighlightIds: null, liveCropByImage: /* @__PURE__ */ new Map(), simulationEnergy: 0, simulationFrame: null, cameraFollowCenter: false };
+const state = { albums: [], byId: /* @__PURE__ */ new Map(), focusId: null, selectedId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, positions: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), graphEdges: [], hoverHighlightIds: null, liveCropByImage: /* @__PURE__ */ new Map(), simulationEnergy: 0, simulationFrame: null, cameraFollowCenter: false };
 const view = { scene: null, camera: null, renderer: null, controls: null, nodeGroup: null, outlineGroup: null, edgeGroup: null, sprites: /* @__PURE__ */ new Map(), outlines: /* @__PURE__ */ new Map(), outlineTexture: null, raycaster: new THREE.Raycaster(), pointer: new THREE.Vector2(), hoverId: null, pendingNodeDrag: null, nodeDrag: null, sceneDrag: null, suppressClickUntil: 0, resizeObserver: null };
-function imagesOf(person) {
-  const images = Array.isArray(person.images) && person.images.length ? person.images : [{ image: person.image, crop: person.crop, hasTransparentPixels: person.hasTransparentPixels, detailBackground: person.detailBackground }];
+function imagesOf(album) {
+  const images = Array.isArray(album.images) && album.images.length ? album.images : [{ image: album.image, crop: album.crop, hasTransparentPixels: album.hasTransparentPixels, detailBackground: album.detailBackground }];
   return images.filter((item) => item && typeof item.image === "string");
 }
 function safeStorageObject(key) {
@@ -19,29 +19,29 @@ function safeStorageObject(key) {
     return {};
   }
 }
-const savedPersonCrops = safeStorageObject("visual-atlas-crops"), savedImageCrops = safeStorageObject("visual-atlas-image-crops");
-function effectiveCrop(person, record) {
+const savedAlbumCrops = safeStorageObject("visual-atlas-crops"), savedImageCrops = safeStorageObject("visual-atlas-image-crops");
+function effectiveCrop(album, record) {
   const live = state.liveCropByImage.get(record.image);
   if (live) return live;
-  const saved = record.image === person.image ? savedPersonCrops[person.id] : savedImageCrops[record.image];
+  const saved = record.image === album.image ? savedAlbumCrops[album.id] : savedImageCrops[record.image];
   return saved && typeof saved === "object" ? saved : record.crop;
 }
-function cropCoordinates(person, record) {
-  const crop = effectiveCrop(person, record), offset = crop?.offset || {};
+function cropCoordinates(album, record) {
+  const crop = effectiveCrop(album, record), offset = crop?.offset || {};
   return { x: clamp(50 + (Number(offset.x) || 0), 0, 100), y: crop?.align === "top" ? clamp(Number(offset.y) || 0, 0, 100) : clamp(50 + (Number(offset.y) || 0), 0, 100) };
 }
-function cropPosition(person, record) {
-  const crop = cropCoordinates(person, record);
+function cropPosition(album, record) {
+  const crop = cropCoordinates(album, record);
   return `${crop.x}% ${crop.y}%`;
 }
-function primary(person) {
-  return imagesOf(person).find((item) => item.image === person.image) || imagesOf(person)[0];
+function primary(album) {
+  return imagesOf(album).find((item) => item.image === album.image) || imagesOf(album)[0];
 }
 function comparableDistance(a, b) {
   return window.RelationSimilarity?.distance(a, b) ?? Infinity;
 }
-function rankedNeighbors(person) {
-  return state.people.filter((candidate) => candidate.id !== person.id).map((candidate) => ({ person: candidate, distance: comparableDistance(person, candidate) })).sort((a, b) => a.distance - b.distance || a.person.id - b.person.id);
+function rankedNeighbors(album) {
+  return state.albums.filter((candidate) => candidate.id !== album.id).map((candidate) => ({ album: candidate, distance: comparableDistance(album, candidate) })).sort((a, b) => a.distance - b.distance || a.album.id - b.album.id);
 }
 function relationReason(a, b) {
   const labels = { brightness: "\u5C01\u9762\u4EAE\u5EA6", contrast: "\u5C01\u9762\u5BF9\u6BD4\u5EA6", saturation: "\u5C01\u9762\u9971\u548C\u5EA6", detail: "\u7EC6\u8282\u5BC6\u5EA6", entropy: "\u89C6\u89C9\u590D\u6742\u5EA6", warmth: "\u8272\u6E29", colorfulness: "\u8272\u5F69\u4E30\u5BCC\u5EA6", symmetry: "\u6784\u56FE\u5BF9\u79F0\u5EA6", darkRatio: "\u6697\u8272\u5360\u6BD4", lightRatio: "\u4EAE\u8272\u5360\u6BD4", hue: "\u4E3B\u8272\u76F8", year: "\u53D1\u884C\u5E74\u4EFD", userRating: "\u4E2A\u4EBA\u8BC4\u5206", communityRating: "RYM \u8BC4\u5206" };
@@ -49,36 +49,36 @@ function relationReason(a, b) {
   return close.length ? close.map((item) => item.label || labels[item.key] || item.key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
 }
 function balancedSeedGroups(members, seeds) {
-  const groups = seeds.map((seed) => ({ seed, members: [seed] })), baseSize = Math.floor(members.length / groups.length), remainder = members.length % groups.length, capacities = groups.map((_, index) => baseSize + (index < remainder ? 1 : 0)), pending = members.filter((person) => !seeds.includes(person));
+  const groups = seeds.map((seed) => ({ seed, members: [seed] })), baseSize = Math.floor(members.length / groups.length), remainder = members.length % groups.length, capacities = groups.map((_, index) => baseSize + (index < remainder ? 1 : 0)), pending = members.filter((album) => !seeds.includes(album));
   while (pending.length) {
-    const choice = pending.map((person, pendingIndex) => {
-      const options = groups.map((group, index) => ({ index, distance: comparableDistance(person, group.seed) })).filter((option) => groups[option.index].members.length < capacities[option.index]).sort((a, b) => a.distance - b.distance || a.index - b.index);
-      return { person, pendingIndex, option: options[0], regret: (options[1]?.distance ?? Infinity) - options[0].distance };
-    }).sort((a, b) => b.regret - a.regret || a.option.distance - b.option.distance || a.person.id - b.person.id)[0];
-    groups[choice.option.index].members.push(choice.person);
+    const choice = pending.map((album, pendingIndex) => {
+      const options = groups.map((group, index) => ({ index, distance: comparableDistance(album, group.seed) })).filter((option) => groups[option.index].members.length < capacities[option.index]).sort((a, b) => a.distance - b.distance || a.index - b.index);
+      return { album, pendingIndex, option: options[0], regret: (options[1]?.distance ?? Infinity) - options[0].distance };
+    }).sort((a, b) => b.regret - a.regret || a.option.distance - b.option.distance || a.album.id - b.album.id)[0];
+    groups[choice.option.index].members.push(choice.album);
     pending.splice(choice.pendingIndex, 1);
   }
   return groups;
 }
 function buildSimilarityTree(root) {
-  const depth = /* @__PURE__ */ new Map([[root.id, 0]]), children = new Map(state.people.map((person) => [person.id, []])), edges = [];
+  const depth = /* @__PURE__ */ new Map([[root.id, 0]]), children = new Map(state.albums.map((album) => [album.id, []])), edges = [];
   const split = (parent, memberIds, level) => {
     if (!memberIds.length) return;
     const branchCount = memberIds.length > 48 ? 7 : memberIds.length > 20 ? 6 : memberIds.length > 9 ? 5 : memberIds.length > 4 ? 3 : memberIds.length, members = memberIds.map((id) => state.byId.get(id)), ranked = [...members].sort((a, b) => comparableDistance(parent, a) - comparableDistance(parent, b) || a.id - b.id), rootOffset = parent.id === root.id ? state.neighborOffset % Math.min(12, ranked.length) : 0, seeds = [ranked[rootOffset]];
     while (seeds.length < branchCount) {
-      const candidate = members.filter((person) => !seeds.includes(person)).map((person) => ({ person, separation: Math.min(...seeds.map((seed) => comparableDistance(person, seed))) })).sort((a, b) => b.separation - a.separation || a.person.id - b.person.id)[0];
+      const candidate = members.filter((album) => !seeds.includes(album)).map((album) => ({ album, separation: Math.min(...seeds.map((seed) => comparableDistance(album, seed))) })).sort((a, b) => b.separation - a.separation || a.album.id - b.album.id)[0];
       if (!candidate) break;
-      seeds.push(candidate.person);
+      seeds.push(candidate.album);
     }
     balancedSeedGroups(members, seeds).forEach((group) => {
       const representative = [...group.members].sort((a, b) => comparableDistance(parent, a) - comparableDistance(parent, b) || a.id - b.id)[0];
       children.get(parent.id).push(representative.id);
       depth.set(representative.id, level);
       edges.push({ source: parent.id, target: representative.id, primary: parent.id === root.id });
-      split(representative, group.members.filter((person) => person.id !== representative.id).map((person) => person.id), level + 1);
+      split(representative, group.members.filter((album) => album.id !== representative.id).map((album) => album.id), level + 1);
     });
   };
-  split(root, state.people.filter((person) => person.id !== root.id).map((person) => person.id), 1);
+  split(root, state.albums.filter((album) => album.id !== root.id).map((album) => album.id), 1);
   return { children, depth, edges };
 }
 function seedPositions(rootId, children) {
@@ -115,8 +115,8 @@ function queuePortraitLoad(task) {
   portraitPumpScheduled = true;
   queueMicrotask(pumpPortraitLoads);
 }
-function createPortraitTexture(person, priority = 0) {
-  const record = primary(person), canvas = document.createElement("canvas"), context = canvas.getContext("2d"), texture = new THREE.CanvasTexture(canvas);
+function createPortraitTexture(album, priority = 0) {
+  const record = primary(album), canvas = document.createElement("canvas"), context = canvas.getContext("2d"), texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, view.renderer.capabilities.getMaxAnisotropy());
   texture.generateMipmaps = false;
@@ -134,7 +134,7 @@ function createPortraitTexture(person, priority = 0) {
     context.fillStyle = record.hasTransparentPixels ? record.detailBackground || "#181815" : "#2d2d29";
     context.fillRect(0, 0, width, height);
     if (image.naturalWidth) {
-      const target = width / height, source = image.naturalWidth / image.naturalHeight, crop = cropCoordinates(person, record);
+      const target = width / height, source = image.naturalWidth / image.naturalHeight, crop = cropCoordinates(album, record);
       let sx = 0, sy = 0, sw = image.naturalWidth, sh = image.naturalHeight;
       if (source > target) {
         sw = image.naturalHeight * target;
@@ -151,7 +151,7 @@ function createPortraitTexture(person, priority = 0) {
     texture.userData.uploaded = true;
     texture.needsUpdate = true;
   };
-  texture.userData = { canvas, context, image, personId: person.id, imagePath: record.image, level: 256, emphasis: 0, loadState: "queued", disposed: false, uploaded: false, redraw };
+  texture.userData = { canvas, context, image, albumId: album.id, imagePath: record.image, level: 256, emphasis: 0, loadState: "queued", disposed: false, uploaded: false, redraw };
   const enqueue = (attempt) => queuePortraitLoad({ texture, priority: priority - attempt, start: (done) => {
     let settled = false;
     const finish = (loaded) => {
@@ -221,23 +221,23 @@ function rebuildScene() {
   }
   view.edgeGroup = new THREE.Group();
   view.scene.add(view.edgeGroup);
-  const firstLevel = new Set(state.neighbors.map((item) => item.person.id));
-  state.people.forEach((person) => {
-    const role = person.id === state.focusId ? "center" : firstLevel.has(person.id) ? "neighbor" : "secondary", scale = role === "center" ? 3.5 : role === "neighbor" ? 2.35 : 1.55;
-    let sprite = view.sprites.get(person.id), outline = view.outlines.get(person.id);
+  const firstLevel = new Set(state.neighbors.map((item) => item.album.id));
+  state.albums.forEach((album) => {
+    const role = album.id === state.focusId ? "center" : firstLevel.has(album.id) ? "neighbor" : "secondary", scale = role === "center" ? 3.5 : role === "neighbor" ? 2.35 : 1.55;
+    let sprite = view.sprites.get(album.id), outline = view.outlines.get(album.id);
     if (!sprite) {
-      const priority = role === "center" ? 2 : role === "neighbor" ? 1 : 0, material = new THREE.SpriteMaterial({ map: createPortraitTexture(person, priority), color: 16777215, transparent: true, alphaTest: 0.01, depthTest: true, depthWrite: true });
+      const priority = role === "center" ? 2 : role === "neighbor" ? 1 : 0, material = new THREE.SpriteMaterial({ map: createPortraitTexture(album, priority), color: 16777215, transparent: true, alphaTest: 0.01, depthTest: true, depthWrite: true });
       sprite = new THREE.Sprite(material);
       view.nodeGroup.add(sprite);
-      view.sprites.set(person.id, sprite);
+      view.sprites.set(album.id, sprite);
       outline = new THREE.Sprite(new THREE.SpriteMaterial({ map: view.outlineTexture, transparent: true, depthTest: true, depthWrite: false }));
       outline.visible = false;
       outline.renderOrder = 6;
       view.outlineGroup.add(outline);
-      view.outlines.set(person.id, outline);
+      view.outlines.set(album.id, outline);
     }
     sprite.scale.set(scale, scale, 1);
-    sprite.userData = { id: person.id, role };
+    sprite.userData = { id: album.id, role };
   });
   state.graphEdges.forEach((edge) => {
     const geometry = new THREE.BufferGeometry(), positions = new Float32Array(6);
@@ -312,21 +312,21 @@ function restoreSelectedHighlight() {
 }
 function bindFocusHighlightInteractions() {
   $("#focusTypes").querySelectorAll("[data-highlight-type]").forEach((element) => {
-    element.onmouseenter = () => setTemporaryHighlight(new Set(state.people.filter((person) => person[element.dataset.highlightKind] === element.dataset.highlightType).map((person) => person.id)));
+    element.onmouseenter = () => setTemporaryHighlight(new Set(state.albums.filter((album) => album[element.dataset.highlightKind] === element.dataset.highlightType).map((album) => album.id)));
     element.onmouseleave = restoreSelectedHighlight;
   });
-  $("#relationPath").querySelectorAll("[data-relation-person]").forEach((element) => {
-    element.onmouseenter = () => setTemporaryHighlight(subtreeIds(Number(element.dataset.relationPerson)));
+  $("#relationPath").querySelectorAll("[data-relation-album]").forEach((element) => {
+    element.onmouseenter = () => setTemporaryHighlight(subtreeIds(Number(element.dataset.relationAlbum)));
     element.onmouseleave = restoreSelectedHighlight;
   });
 }
 function refreshSpriteTexture(id, record = null) {
   const sprite = view.sprites.get(id);
   if (!sprite) return;
-  const texture = sprite.material.map, person = state.byId.get(id);
-  texture.userData.imagePath ??= primary(person).image;
+  const texture = sprite.material.map, album = state.byId.get(id);
+  texture.userData.imagePath ??= primary(album).image;
   if (record && texture.userData.imagePath !== record.image) {
-    const previous = texture, viewPerson = { ...person, images: [record] }, next = createPortraitTexture(viewPerson, 2);
+    const previous = texture, viewAlbum = { ...album, images: [record] }, next = createPortraitTexture(viewAlbum, 2);
     next.userData.imagePath = record.image;
     sprite.material.map = next;
     sprite.material.needsUpdate = true;
@@ -400,14 +400,14 @@ function renderNetwork(reinitializeFan = false) {
   state.graphEdges = tree.edges;
   state.parentById = new Map(tree.edges.map((edge) => [edge.target, edge.source]));
   const firstLevel = tree.children.get(focus.id) || [];
-  state.neighbors = firstLevel.map((id) => ({ person: state.byId.get(id), distance: comparableDistance(focus, state.byId.get(id)) }));
+  state.neighbors = firstLevel.map((id) => ({ album: state.byId.get(id), distance: comparableDistance(focus, state.byId.get(id)) }));
   if (reinitializeFan) {
     const targets = seedPositions(focus.id, tree.children), root = targets.get(focus.id);
     state.positions = new Map([...targets].map(([id, point]) => [id, id === focus.id ? point : { ...point, x: root.x + (point.x - root.x) * 0.06, y: root.y + (point.y - root.y) * 0.06, z: root.z + (point.z - root.z) * 0.06 }]));
   } else if (previousPositions.size) {
-    state.positions = new Map(state.people.map((person) => {
-      const point = previousPositions.get(person.id);
-      return [person.id, { x: point.x, y: point.y, z: point.z, vx: 0, vy: 0, vz: 0, fixed: false }];
+    state.positions = new Map(state.albums.map((album) => {
+      const point = previousPositions.get(album.id);
+      return [album.id, { x: point.x, y: point.y, z: point.z, vx: 0, vy: 0, vz: 0, fixed: false }];
     }));
   } else state.positions = seedPositions(focus.id, tree.children);
   rebuildScene();
@@ -416,28 +416,28 @@ function renderNetwork(reinitializeFan = false) {
   if (!previousPositions.size) resetCamera();
 }
 function renderFocus() {
-  const person = state.byId.get(state.selectedId), center = state.byId.get(state.focusId), images = imagesOf(person), index = clamp(state.imageIndex.get(person.id) || 0, 0, images.length - 1), image = images[index];
-  state.imageIndex.set(person.id, index);
+  const album = state.byId.get(state.selectedId), center = state.byId.get(state.focusId), images = imagesOf(album), index = clamp(state.imageIndex.get(album.id) || 0, 0, images.length - 1), image = images[index];
+  state.imageIndex.set(album.id, index);
   $("#focusImage").src = image.image;
-  $("#focusImage").alt = person.name;
+  $("#focusImage").alt = album.name;
   $("#focusImageButton").style.background = image.hasTransparentPixels ? image.detailBackground || "#181815" : "#181815";
   $("#imagePosition").textContent = `${index + 1} / ${images.length}`;
-  $("#focusPosition").textContent = `\u4E13\u8F91 ${person.id} \xB7 ${person.id === center.id ? "\u5F53\u524D\u56FE\u4E2D\u5FC3" : "\u4E09\u7EF4\u5173\u8054\u8282\u70B9"}`;
-  $("#focusName").textContent = person.name;
-  window.renderAlbumPalette?.(person);
-  $("#focusArtist").textContent = person.artist || "";
-  $("#focusStats").innerHTML = `<div><dt>个人评分</dt><dd>${person.userRating ?? "—"} / 10</dd></div><div><dt>社区评分</dt><dd>${person.communityRating ?? "—"} / 5</dd></div><div><dt>年份</dt><dd>${person.year ?? "—"}</dd></div><div><dt>专辑时长</dt><dd>${person.durationSeconds ? `${Math.round(person.durationSeconds / 60)} 分钟` : "—"}</dd></div>`;
-  $("#focusDescriptors").textContent = (person.descriptors || []).join(" · ");
-  $("#focusTypes").innerHTML = (person.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("") || "<span>尚未分类</span>";
-  renderRelationPath(person);
-  $("#galleryLink").href = person.url || "/";
-  $("#viewModeLink").href = `explore.html?person=${center.id}`;
-  $("#makeCenterButton").hidden = person.id === center.id;
+  $("#focusPosition").textContent = `\u4E13\u8F91 ${album.id} \xB7 ${album.id === center.id ? "\u5F53\u524D\u56FE\u4E2D\u5FC3" : "\u4E09\u7EF4\u5173\u8054\u8282\u70B9"}`;
+  $("#focusName").textContent = album.name;
+  window.renderAlbumPalette?.(album);
+  $("#focusArtist").textContent = album.artist || "";
+  $("#focusStats").innerHTML = `<div><dt>个人评分</dt><dd>${album.userRating ?? "—"} / 10</dd></div><div><dt>社区评分</dt><dd>${album.communityRating ?? "—"} / 5</dd></div><div><dt>年份</dt><dd>${album.year ?? "—"}</dd></div><div><dt>专辑时长</dt><dd>${album.durationSeconds ? `${Math.round(album.durationSeconds / 60)} 分钟` : "—"}</dd></div>`;
+  $("#focusDescriptors").textContent = (album.descriptors || []).join(" · ");
+  $("#focusTypes").innerHTML = (album.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("") || "<span>尚未分类</span>";
+  renderRelationPath(album);
+  $("#galleryLink").href = album.url || "/";
+  $("#viewModeLink").href = `explore.html?album=${center.id}`;
+  $("#makeCenterButton").hidden = album.id === center.id;
   $("#trail").innerHTML = state.trail.map((id) => {
     const item = state.byId.get(id), record = primary(item);
-    return `<button class="${id === person.id ? "current" : ""}" data-trail-id="${id}" title="${escapeHtml(item.name)}"><img src="${record.image}" alt="${escapeHtml(item.name)}" style="object-position:${cropPosition(item, record)}"></button>`;
+    return `<button class="${id === album.id ? "current" : ""}" data-trail-id="${id}" title="${escapeHtml(item.name)}"><img src="${record.image}" alt="${escapeHtml(item.name)}" style="object-position:${cropPosition(item, record)}"></button>`;
   }).join("");
-  $("#trail").querySelectorAll("[data-trail-id]").forEach((button) => button.onclick = () => selectPerson(Number(button.dataset.trailId), { record: false }));
+  $("#trail").querySelectorAll("[data-trail-id]").forEach((button) => button.onclick = () => selectAlbum(Number(button.dataset.trailId), { record: false }));
   bindFocusHighlightInteractions();
 }
 function relationChain(id) {
@@ -445,21 +445,21 @@ function relationChain(id) {
   while (chain[0] !== state.focusId && state.parentById.has(chain[0])) chain.unshift(state.parentById.get(chain[0]));
   return chain;
 }
-function renderRelationPath(person) {
+function renderRelationPath(album) {
   const container = $("#relationPath");
-  if (person.id === state.focusId) {
+  if (album.id === state.focusId) {
     container.hidden = true;
     container.innerHTML = "";
     return;
   }
-  const chain = relationChain(person.id);
+  const chain = relationChain(album.id);
   container.hidden = false;
   container.innerHTML = `<div class="relation-path-title">\u4ECE\u56FE\u4E2D\u5FC3\u5230\u5F53\u524D\u4E13\u8F91</div>${chain.map((id, index) => {
     const item = state.byId.get(id), previous = index ? state.byId.get(chain[index - 1]) : null;
-    return `<div class="relation-step" data-relation-person="${id}"><i class="relation-dot"></i><span><b>${escapeHtml(item.name)}</b><small>${previous ? escapeHtml(relationReason(previous, item)) : "\u56FE\u4E2D\u5FC3"}</small></span></div>`;
+    return `<div class="relation-step" data-relation-album="${id}"><i class="relation-dot"></i><span><b>${escapeHtml(item.name)}</b><small>${previous ? escapeHtml(relationReason(previous, item)) : "\u56FE\u4E2D\u5FC3"}</small></span></div>`;
   }).join("")}`;
 }
-function selectPerson(id, { record = true } = {}) {
+function selectAlbum(id, { record = true } = {}) {
   if (!state.byId.has(id)) return;
   state.selectedId = id;
   if (record && state.trail.at(-1) !== id) {
@@ -470,7 +470,7 @@ function selectPerson(id, { record = true } = {}) {
   paintGraph();
   renderFocus();
 }
-function focusPerson(id, { record = true } = {}) {
+function focusAlbum(id, { record = true } = {}) {
   if (!state.byId.has(id)) return;
   state.focusId = id;
   state.selectedId = id;
@@ -483,21 +483,23 @@ function focusPerson(id, { record = true } = {}) {
   renderFocus();
 }
 function stepImage(delta) {
-  const person = state.byId.get(state.selectedId), images = imagesOf(person), current = state.imageIndex.get(person.id) || 0, next = (current + delta + images.length) % images.length;
-  state.imageIndex.set(person.id, next);
-  refreshSpriteTexture(person.id, images[next]);
+  const album = state.byId.get(state.selectedId), images = imagesOf(album), current = state.imageIndex.get(album.id) || 0, next = (current + delta + images.length) % images.length;
+  state.imageIndex.set(album.id, next);
+  refreshSpriteTexture(album.id, images[next]);
   renderFocus();
 }
-function stepPerson(delta) {
+function stepAlbum(delta) {
   const order = [state.focusId, ...state.graphEdges.map((edge) => edge.target)], index = Math.max(0, order.indexOf(state.selectedId)), next = order[(index + delta + order.length) % order.length];
-  selectPerson(next);
+  selectAlbum(next);
 }
 function surprise() {
   const focus = state.byId.get(state.focusId), ranked = rankedNeighbors(focus).filter((item) => Number.isFinite(item.distance)), pool = ranked.slice(Math.floor(ranked.length * 0.22), Math.max(1, Math.floor(ranked.length * 0.6))), choice = pool[Math.floor(Math.random() * pool.length)] || ranked.at(-1);
-  if (choice) selectPerson(choice.person.id);
+  if (choice) selectAlbum(choice.album.id);
 }
 function resetCamera() {
-  view.camera.position.set(...(compactRenderer ? [22, 17, 27] : [14, 11, 17]));
+  const landscapePosition = [14, 11, 17];
+  const position = innerWidth <= 800 && innerWidth <= innerHeight ? landscapePosition.map((value) => value * 1.8) : landscapePosition;
+  view.camera.position.set(...position);
   view.controls.target.set(0, 0, 0);
   view.controls.update();
 }
@@ -638,8 +640,8 @@ function bindCanvasInteraction() {
       tooltip.hidden = true;
       return;
     }
-    const person = state.byId.get(id), focus = state.byId.get(state.focusId);
-    tooltip.innerHTML = `<b>${escapeHtml(person.name)}</b><br>${id === state.focusId ? "\u5F53\u524D\u4E2D\u5FC3" : escapeHtml(relationReason(focus, person))}`;
+    const album = state.byId.get(id), focus = state.byId.get(state.focusId);
+    tooltip.innerHTML = `<b>${escapeHtml(album.name)}</b><br>${id === state.focusId ? "\u5F53\u524D\u4E2D\u5FC3" : escapeHtml(relationReason(focus, album))}`;
     tooltip.style.left = `${event.offsetX}px`;
     tooltip.style.top = `${event.offsetY}px`;
     tooltip.hidden = false;
@@ -648,7 +650,7 @@ function bindCanvasInteraction() {
     const pending = view.pendingNodeDrag;
     if (pending && pending.pointerId === event.pointerId) {
       view.pendingNodeDrag = null;
-      if (event.type === "pointerup" && touchPointers.size === 1) selectPerson(pending.id);
+      if (event.type === "pointerup" && touchPointers.size === 1) selectAlbum(pending.id);
     }
     const drag = view.nodeDrag;
     if (!drag || drag.pointerId !== event.pointerId) return;
@@ -661,7 +663,7 @@ function bindCanvasInteraction() {
     view.controls.enabled = true;
     canvas.style.cursor = "pointer";
     if (drag.moved) view.suppressClickUntil = performance.now() + 180;
-    else selectPerson(drag.id);
+    else selectAlbum(drag.id);
     paintGraph();
     startSimulation(0.4);
   };
@@ -688,11 +690,16 @@ function bindCanvasInteraction() {
   });
   canvas.addEventListener("click", (event) => {
     if (performance.now() < view.suppressClickUntil) return;
-    if (!hitAt(event)) selectPerson(state.focusId, { record: false });
+    if (hitAt(event)) return;
+    if (innerWidth <= 800 && innerWidth <= innerHeight) {
+      $(".focus-panel").classList.add("panel-hidden");
+      return;
+    }
+    selectAlbum(state.focusId, { record: false });
   });
   canvas.addEventListener("dblclick", (event) => {
     const hit = hitAt(event);
-    if (hit) focusPerson(hit.userData.id);
+    if (hit) focusAlbum(hit.userData.id);
   });
 }
 function initThree() {
@@ -743,13 +750,13 @@ function bindInteraction() {
   document.querySelectorAll("[data-zoom]").forEach((button) => button.onclick = () => view.camera.position.multiplyScalar(Number(button.dataset.zoom) > 0 ? 0.82 : 1.22));
   const resetButton = $("[data-reset]");
   if (resetButton) resetButton.onclick = resetCamera;
-  $("#previousPerson").onclick = () => stepPerson(-1);
-  $("#nextPerson").onclick = () => stepPerson(1);
+  $("#previousAlbum").onclick = () => stepAlbum(-1);
+  $("#nextAlbum").onclick = () => stepAlbum(1);
   $("#surpriseButton").onclick = surprise;
   $("#makeCenterButton").onclick = () => {
     const id = state.selectedId;
     if (innerWidth <= 800) $(".focus-panel").classList.add("panel-hidden");
-    focusPerson(id);
+    focusAlbum(id);
   };
   $("#closeFocusPanel").onclick = () => $(".focus-panel").classList.add("panel-hidden");
   $("#similarButton").onclick = () => {
@@ -768,8 +775,8 @@ function bindInteraction() {
       return;
     }
     if (event.target.matches("input")) return;
-    if (event.key === "ArrowLeft") stepPerson(-1);
-    if (event.key === "ArrowRight") stepPerson(1);
+    if (event.key === "ArrowLeft") stepAlbum(-1);
+    if (event.key === "ArrowRight") stepAlbum(1);
     if (event.key === "ArrowUp") stepImage(-1);
     if (event.key === "ArrowDown") stepImage(1);
   });
@@ -782,14 +789,14 @@ function bindSearch() {
       results.hidden = true;
       return;
     }
-    const matches = state.people.filter((person) => String(person.id).includes(query) || person.name.toLocaleLowerCase().includes(query)).slice(0, 8);
-    results.innerHTML = matches.map((person) => {
-      const image = primary(person);
-      return `<button class="search-result" data-search-id="${person.id}"><img src="${image.image}" alt="" style="object-position:${cropPosition(person, image)}"><span>${escapeHtml(person.name)}<small>${person.year ?? "\u672A\u77E5"}</small></span></button>`;
+    const matches = state.albums.filter((album) => String(album.id).includes(query) || album.name.toLocaleLowerCase().includes(query)).slice(0, 8);
+    results.innerHTML = matches.map((album) => {
+      const image = primary(album);
+      return `<button class="search-result" data-search-id="${album.id}"><img src="${image.image}" alt="" style="object-position:${cropPosition(album, image)}"><span>${escapeHtml(album.name)}<small>${album.year ?? "\u672A\u77E5"}</small></span></button>`;
     }).join("") || '<div class="search-result">\u6CA1\u6709\u5339\u914D\u4E13\u8F91</div>';
     results.hidden = false;
     results.querySelectorAll("[data-search-id]").forEach((button) => button.onclick = () => {
-      selectPerson(Number(button.dataset.searchId));
+      selectAlbum(Number(button.dataset.searchId));
       input.value = "";
       results.hidden = true;
     });
@@ -806,18 +813,19 @@ function bindSearch() {
 }
 async function init() {
   try {
-    const response = await fetch("docs/people.json");
+    const response = await fetch("docs/albums.json");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const document2 = await response.json();
-    state.people = (document2.people || []).filter((person) => person && Number.isInteger(person.id) && person.image);
-    state.byId = new Map(state.people.map((person) => [person.id, person]));
-    if (!state.people.length) throw new Error("\u4E13\u8F91\u6863\u6848\u4E3A\u7A7A");
+    state.albums = (document2.albums || []).filter((album) => album && Number.isInteger(album.id) && album.image);
+    state.byId = new Map(state.albums.map((album) => [album.id, album]));
+    if (!state.albums.length) throw new Error("\u4E13\u8F91\u6863\u6848\u4E3A\u7A7A");
     initThree();
     bindInteraction();
     bindSearch();
     window.RelationSimilarity?.bind(() => { state.neighborOffset = 0; renderNetwork(true); renderFocus(); });
-    const requested = Number(new URLSearchParams(location.search).get("person")), initial = state.byId.has(requested) ? requested : state.people[Math.floor(Math.random() * state.people.length)].id;
-    focusPerson(initial);
+    const requested = Number(new URLSearchParams(location.search).get("album")), initial = state.byId.has(requested) ? requested : state.albums[Math.floor(Math.random() * state.albums.length)].id;
+    focusAlbum(initial);
+    $(".focus-panel").classList.add("panel-hidden");
     $("#exploreApp").setAttribute("aria-busy", "false");
     $("#status").hidden = true;
   } catch (error) {

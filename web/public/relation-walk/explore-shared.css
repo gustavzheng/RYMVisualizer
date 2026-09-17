@@ -12,7 +12,7 @@
 .network-node.dragging{z-index:8;opacity:1}
 .network-node.dragging .portrait{border-color:var(--lime);transform:scale(1.08)}
 .network-node.selected:not(.center) .portrait,.network-node:hover:not(.center) .portrait,.network-node.dragging:not(.center) .portrait{border-color:var(--lime);box-shadow:0 0 0 5px #d8ff3e1c,0 12px 38px #000}
-.network-node.subtree-muted{opacity:.38}.network-node.subtree-highlight{opacity:1;z-index:3}.network-edges line.subtree-muted{stroke-opacity:.07}.network-edges line.subtree-highlight{stroke:var(--lime);stroke-opacity:.9;stroke-width:1.8}.type-row [data-highlight-type],.relation-step[data-relation-person]{cursor:default}
+.network-node.subtree-muted{opacity:.38}.network-node.subtree-highlight{opacity:1;z-index:3}.network-edges line.subtree-muted{stroke-opacity:.07}.network-edges line.subtree-highlight{stroke:var(--lime);stroke-opacity:.9;stroke-width:1.8}.type-row [data-highlight-type],.relation-step[data-relation-album]{cursor:default}
 .focus-image-button{display:flex;align-items:center;justify-content:center;overflow:hidden}
 .focus-image-button img{height:100%;width:auto;max-width:100%;aspect-ratio:auto;object-fit:contain}
 @media(min-width:801px){

@@ -2,11 +2,14 @@
 (() => {
   const $ = (selector) => document.querySelector(selector);
   const worldCenter = { x: 6e3, y: 4500 };
-  const state = { people: [], byId: /* @__PURE__ */ new Map(), focusId: null, renderedFocusId: null, selectedId: null, hoverId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, scale: 1, panX: 0, panY: 0, drag: null, nodeDrag: null, dragBoost: null, pointers: /* @__PURE__ */ new Map(), pinch: null, positions: /* @__PURE__ */ new Map(), nodeRadii: /* @__PURE__ */ new Map(), branchPathById: /* @__PURE__ */ new Map(), topBranchById: /* @__PURE__ */ new Map(), branchAngles: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), graphEdges: [], nodeElements: [], edgeElements: [], graphAnchor: { ...worldCenter }, cameraFrame: null, simulationFrame: null, layoutFrame: null, simulationEnergy: 0 };
+  const orientationStyle = document.createElement("style");
+  orientationStyle.textContent = "@media(max-width:800px){.network-nodes .network-node.center .portrait{width:160px}.network-nodes .network-node.neighbor .portrait{width:124px}.network-nodes .network-node.secondary .portrait{width:108px}}";
+  document.head.append(orientationStyle);
+  const state = { albums: [], byId: /* @__PURE__ */ new Map(), focusId: null, renderedFocusId: null, selectedId: null, hoverId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, scale: 1, panX: 0, panY: 0, drag: null, nodeDrag: null, dragBoost: null, pointers: /* @__PURE__ */ new Map(), pinch: null, positions: /* @__PURE__ */ new Map(), nodeRadii: /* @__PURE__ */ new Map(), branchPathById: /* @__PURE__ */ new Map(), topBranchById: /* @__PURE__ */ new Map(), branchAngles: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), graphEdges: [], nodeElements: [], edgeElements: [], graphAnchor: { ...worldCenter }, cameraFrame: null, simulationFrame: null, layoutFrame: null, simulationEnergy: 0 };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-  function imagesOf(person) {
-    const images = Array.isArray(person.images) && person.images.length ? person.images : [{ image: person.image, crop: person.crop, hasTransparentPixels: person.hasTransparentPixels, detailBackground: person.detailBackground }];
+  function imagesOf(album) {
+    const images = Array.isArray(album.images) && album.images.length ? album.images : [{ image: album.image, crop: album.crop, hasTransparentPixels: album.hasTransparentPixels, detailBackground: album.detailBackground }];
     return images.filter((item) => item && typeof item.image === "string");
   }
   function safeStorageObject(key) {
@@ -17,59 +20,59 @@
       return {};
     }
   }
-  const savedPersonCrops = safeStorageObject("visual-atlas-crops");
+  const savedAlbumCrops = safeStorageObject("visual-atlas-crops");
   const savedImageCrops = safeStorageObject("visual-atlas-image-crops");
-  function effectiveCrop(person, record) {
-    const saved = record.image === person.image ? savedPersonCrops[person.id] : savedImageCrops[record.image];
+  function effectiveCrop(album, record) {
+    const saved = record.image === album.image ? savedAlbumCrops[album.id] : savedImageCrops[record.image];
     return saved && typeof saved === "object" ? saved : record.crop;
   }
-  function cropPosition(person, record) {
-    const crop = effectiveCrop(person, record), offset = crop?.offset || {}, x = clamp(50 + (Number(offset.x) || 0), 0, 100), y = crop?.align === "top" ? clamp(Number(offset.y) || 0, 0, 100) : clamp(50 + (Number(offset.y) || 0), 0, 100);
+  function cropPosition(album, record) {
+    const crop = effectiveCrop(album, record), offset = crop?.offset || {}, x = clamp(50 + (Number(offset.x) || 0), 0, 100), y = crop?.align === "top" ? clamp(Number(offset.y) || 0, 0, 100) : clamp(50 + (Number(offset.y) || 0), 0, 100);
     return `${x}% ${y}%`;
   }
-  function primary(person) {
-    return imagesOf(person).find((item) => item.image === person.image) || imagesOf(person)[0];
+  function primary(album) {
+    return imagesOf(album).find((item) => item.image === album.image) || imagesOf(album)[0];
   }
   function comparableDistance(a, b) {
     return window.RelationSimilarity?.distance(a, b) ?? Infinity;
   }
-  function rankedNeighbors(person) {
-    return state.people.filter((candidate) => candidate.id !== person.id).map((candidate) => ({ person: candidate, distance: comparableDistance(person, candidate) })).sort((a, b) => a.distance - b.distance || a.person.id - b.person.id);
+  function rankedNeighbors(album) {
+    return state.albums.filter((candidate) => candidate.id !== album.id).map((candidate) => ({ album: candidate, distance: comparableDistance(album, candidate) })).sort((a, b) => a.distance - b.distance || a.album.id - b.album.id);
   }
   function relationReason(a, b) {
     const labels = { brightness: "\u5C01\u9762\u4EAE\u5EA6", contrast: "\u5C01\u9762\u5BF9\u6BD4\u5EA6", saturation: "\u5C01\u9762\u9971\u548C\u5EA6", detail: "\u7EC6\u8282\u5BC6\u5EA6", entropy: "\u89C6\u89C9\u590D\u6742\u5EA6", warmth: "\u8272\u6E29", colorfulness: "\u8272\u5F69\u4E30\u5BCC\u5EA6", symmetry: "\u6784\u56FE\u5BF9\u79F0\u5EA6", darkRatio: "\u6697\u8272\u5360\u6BD4", lightRatio: "\u4EAE\u8272\u5360\u6BD4", hue: "\u4E3B\u8272\u76F8", year: "\u53D1\u884C\u5E74\u4EFD", userRating: "\u4E2A\u4EBA\u8BC4\u5206", communityRating: "RYM \u8BC4\u5206" };
     const close = window.RelationSimilarity?.closest(a, b, 2) || [];
     return close.length ? close.map((item) => item.label || labels[item.key] || item.key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
   }
-  function nodeMarkup(person, role, position, caption = "", reason = "") {
-    const image = primary(person);
-    return `<button class="network-node ${role}" data-person-id="${person.id}" style="left:${position.x}px;top:${position.y}px" aria-label="${escapeHtml(person.name)}${reason ? `\uFF0C${escapeHtml(reason)}` : ""}"><span class="portrait" style="background:${image?.hasTransparentPixels ? image.detailBackground || "#181815" : "#2d2d29"}"><img src="${image?.image || ""}" alt="" draggable="false" style="object-position:${cropPosition(person, image)}"></span><b>${escapeHtml(person.name)}</b><small>${caption}</small></button>`;
+  function nodeMarkup(album, role, position, caption = "", reason = "") {
+    const image = primary(album);
+    return `<button class="network-node ${role}" data-album-id="${album.id}" style="left:${position.x}px;top:${position.y}px" aria-label="${escapeHtml(album.name)}${reason ? `\uFF0C${escapeHtml(reason)}` : ""}"><span class="portrait" style="background:${image?.hasTransparentPixels ? image.detailBackground || "#181815" : "#2d2d29"}"><img src="${image?.image || ""}" alt="" draggable="false" style="object-position:${cropPosition(album, image)}"></span><b>${escapeHtml(album.name)}</b><small>${caption}</small></button>`;
   }
   function balancedSeedGroups(members, seeds) {
     const groups = seeds.map((seed) => ({ seed, members: [seed] }));
     const baseSize = Math.floor(members.length / groups.length), remainder = members.length % groups.length;
     const capacities = groups.map((_, index) => baseSize + (index < remainder ? 1 : 0));
-    const pending = members.filter((person) => !seeds.includes(person));
+    const pending = members.filter((album) => !seeds.includes(album));
     while (pending.length) {
-      const choice = pending.map((person, pendingIndex) => {
-        const options = groups.map((group, index) => ({ index, distance: comparableDistance(person, group.seed) })).filter((option) => groups[option.index].members.length < capacities[option.index]).sort((a, b) => a.distance - b.distance || a.index - b.index);
-        return { person, pendingIndex, option: options[0], regret: (options[1]?.distance ?? Infinity) - options[0].distance };
-      }).sort((a, b) => b.regret - a.regret || a.option.distance - b.option.distance || a.person.id - b.person.id)[0];
-      groups[choice.option.index].members.push(choice.person);
+      const choice = pending.map((album, pendingIndex) => {
+        const options = groups.map((group, index) => ({ index, distance: comparableDistance(album, group.seed) })).filter((option) => groups[option.index].members.length < capacities[option.index]).sort((a, b) => a.distance - b.distance || a.index - b.index);
+        return { album, pendingIndex, option: options[0], regret: (options[1]?.distance ?? Infinity) - options[0].distance };
+      }).sort((a, b) => b.regret - a.regret || a.option.distance - b.option.distance || a.album.id - b.album.id)[0];
+      groups[choice.option.index].members.push(choice.album);
       pending.splice(choice.pendingIndex, 1);
     }
     return groups;
   }
   function buildSimilarityTree(root) {
-    const depth = /* @__PURE__ */ new Map([[root.id, 0]]), children = new Map(state.people.map((person) => [person.id, []])), edges = [];
+    const depth = /* @__PURE__ */ new Map([[root.id, 0]]), children = new Map(state.albums.map((album) => [album.id, []])), edges = [];
     const split = (parent, memberIds, level) => {
       if (!memberIds.length) return;
       const branchCount = memberIds.length > 48 ? 7 : memberIds.length > 20 ? 6 : memberIds.length > 9 ? 5 : memberIds.length > 4 ? 3 : memberIds.length;
       const members = memberIds.map((id) => state.byId.get(id)), ranked = [...members].sort((a, b) => comparableDistance(parent, a) - comparableDistance(parent, b) || a.id - b.id), rootOffset = parent.id === root.id ? state.neighborOffset % Math.min(12, ranked.length) : 0, seeds = [ranked[rootOffset]];
       while (seeds.length < branchCount) {
-        const candidate = members.filter((person) => !seeds.includes(person)).map((person) => ({ person, separation: Math.min(...seeds.map((seed) => comparableDistance(person, seed))) })).sort((a, b) => b.separation - a.separation || a.person.id - b.person.id)[0];
+        const candidate = members.filter((album) => !seeds.includes(album)).map((album) => ({ album, separation: Math.min(...seeds.map((seed) => comparableDistance(album, seed))) })).sort((a, b) => b.separation - a.separation || a.album.id - b.album.id)[0];
         if (!candidate) break;
-        seeds.push(candidate.person);
+        seeds.push(candidate.album);
       }
       const groups = balancedSeedGroups(members, seeds);
       groups.filter((group) => group.members.length).forEach((group) => {
@@ -77,17 +80,17 @@
         children.get(parent.id).push(representative.id);
         depth.set(representative.id, level);
         edges.push({ source: parent.id, target: representative.id, primary: parent.id === root.id, distance: comparableDistance(parent, representative) });
-        split(representative, group.members.filter((person) => person.id !== representative.id).map((person) => person.id), level + 1);
+        split(representative, group.members.filter((album) => album.id !== representative.id).map((album) => album.id), level + 1);
       });
     };
-    split(root, state.people.filter((person) => person.id !== root.id).map((person) => person.id), 1);
+    split(root, state.albums.filter((album) => album.id !== root.id).map((album) => album.id), 1);
     return { children, depth, edges };
   }
   function isCompactPortrait() {
     return innerWidth <= 800 && innerWidth <= innerHeight;
   }
   function graphSpacing() {
-    return isCompactPortrait() ? 0.56 : 1;
+    return 1;
   }
   function collisionSpacing() {
     return 1;
@@ -147,7 +150,7 @@
     state.graphEdges = tree.edges;
     state.depthById = tree.depth;
     const firstLevel = tree.children.get(focus.id), localIds = /* @__PURE__ */ new Set([focus.id, ...firstLevel]);
-    state.neighbors = firstLevel.map((id) => ({ person: state.byId.get(id), distance: comparableDistance(focus, state.byId.get(id)) }));
+    state.neighbors = firstLevel.map((id) => ({ album: state.byId.get(id), distance: comparableDistance(focus, state.byId.get(id)) }));
     state.branchPathById = /* @__PURE__ */ new Map([[focus.id, []]]);
     const assignBranchPath = (id, path) => {
       const nextPath = [...path, id];
@@ -161,9 +164,9 @@
     state.graphAnchor = existingFocus ? { x: existingFocus.x, y: existingFocus.y } : { ...worldCenter };
     const seededLayout = layoutSimilarityTree(focus.id, tree.children, tree.depth, state.graphAnchor), seededPositions = seededLayout.positions;
     state.branchAngles = seededLayout.branchAngles;
-    state.positions = new Map(state.people.map((person) => {
-      const previous = previousPositions.get(person.id), seed = seededPositions.get(person.id), point = previous || seed;
-      return [person.id, { x: point.x, y: point.y, vx: previous?.vx || 0, vy: previous?.vy || 0, fixed: false }];
+    state.positions = new Map(state.albums.map((album) => {
+      const previous = previousPositions.get(album.id), seed = seededPositions.get(album.id), point = previous || seed;
+      return [album.id, { x: point.x, y: point.y, vx: previous?.vx || 0, vy: previous?.vy || 0, fixed: false }];
     }));
     if (reinitializeFan) state.positions.forEach((point, id) => {
       if (id === focus.id) return;
@@ -173,17 +176,17 @@
       point.vx = point.vy = 0;
     });
     const collisionScale = collisionSpacing();
-    state.nodeRadii = new Map(state.people.map((person) => [person.id, (person.id === focus.id ? 128 : localIds.has(person.id) ? 112 : 108) * collisionScale]));
-    $("#networkNodes").innerHTML = state.people.map((person) => {
-      const role = person.id === focus.id ? "center" : localIds.has(person.id) ? "neighbor" : "secondary", distance = comparableDistance(focus, person), caption = role === "center" ? "\u5F53\u524D\u4E13\u8F91" : role === "neighbor" ? `\u76F8\u4F3C ${Math.round(distance)}` : "";
-      return nodeMarkup(person, role, state.positions.get(person.id), caption, person.id === focus.id ? "" : relationReason(focus, person));
+    state.nodeRadii = new Map(state.albums.map((album) => [album.id, (album.id === focus.id ? 128 : localIds.has(album.id) ? 112 : 108) * collisionScale]));
+    $("#networkNodes").innerHTML = state.albums.map((album) => {
+      const role = album.id === focus.id ? "center" : localIds.has(album.id) ? "neighbor" : "secondary", distance = comparableDistance(focus, album), caption = role === "center" ? "\u5F53\u524D\u4E13\u8F91" : role === "neighbor" ? `\u76F8\u4F3C ${Math.round(distance)}` : "";
+      return nodeMarkup(album, role, state.positions.get(album.id), caption, album.id === focus.id ? "" : relationReason(focus, album));
     }).join("");
     $("#networkEdges").setAttribute("viewBox", "0 0 12000 9000");
     $("#networkEdges").innerHTML = tree.edges.map((edge) => {
       const source = state.positions.get(edge.source), target = state.positions.get(edge.target);
       return `<line class="${edge.primary ? "primary" : "secondary"}" data-source="${edge.source}" data-target="${edge.target}" x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}"/>`;
     }).join("");
-    state.nodeElements = [...$("#networkNodes").querySelectorAll("[data-person-id]")].map((node) => [Number(node.dataset.personId), node]);
+    state.nodeElements = [...$("#networkNodes").querySelectorAll("[data-album-id]")].map((node) => [Number(node.dataset.albumId), node]);
     state.edgeElements = [...$("#networkEdges").querySelectorAll("line[data-source]")].map((line) => [Number(line.dataset.source), Number(line.dataset.target), line]);
     bindForceNodes();
     if (changingCenter || reinitializeFan) animateToSeedLayout(seededPositions, () => startSimulation(1, 0.16, true));
@@ -191,29 +194,29 @@
     applyTransform();
   }
   function renderFocus() {
-    const person = state.byId.get(state.selectedId), center = state.byId.get(state.focusId), images = imagesOf(person), index = clamp(state.imageIndex.get(person.id) || 0, 0, images.length - 1), image = images[index];
-    state.imageIndex.set(person.id, index);
+    const album = state.byId.get(state.selectedId), center = state.byId.get(state.focusId), images = imagesOf(album), index = clamp(state.imageIndex.get(album.id) || 0, 0, images.length - 1), image = images[index];
+    state.imageIndex.set(album.id, index);
     $("#focusImage").src = image.image;
-    $("#focusImage").alt = person.name;
-    $("#focusImage").style.objectPosition = cropPosition(person, image);
+    $("#focusImage").alt = album.name;
+    $("#focusImage").style.objectPosition = cropPosition(album, image);
     $("#focusImageButton").style.background = image.hasTransparentPixels ? image.detailBackground || "#181815" : "#181815";
     $("#imagePosition").textContent = `${index + 1} / ${images.length}`;
-    $("#focusPosition").textContent = `专辑 ${person.id} · ${person.id === center.id ? "当前图中心" : "从中心展开的关联节点"}`;
-    $("#focusName").textContent = person.name;
-    window.renderAlbumPalette?.(person);
-    $("#focusArtist").textContent = person.artist || "";
-    $("#focusStats").innerHTML = `<div><dt>个人评分</dt><dd>${person.userRating ?? "—"} / 10</dd></div><div><dt>社区评分</dt><dd>${person.communityRating ?? "—"} / 5</dd></div><div><dt>年份</dt><dd>${person.year ?? "—"}</dd></div><div><dt>专辑时长</dt><dd>${person.durationSeconds ? `${Math.round(person.durationSeconds / 60)} 分钟` : "—"}</dd></div>`;
-    $("#focusDescriptors").textContent = (person.descriptors || []).join(" · ");
-    $("#focusTypes").innerHTML = (person.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("") || "<span>尚未分类</span>";
-    renderRelationPath(person);
-    $("#galleryLink").href = person.url || "/";
-    $("#viewModeLink").href = `explore-3d.html?person=${center.id}`;
-    $("#makeCenterButton").hidden = person.id === center.id;
+    $("#focusPosition").textContent = `专辑 ${album.id} · ${album.id === center.id ? "当前图中心" : "从中心展开的关联节点"}`;
+    $("#focusName").textContent = album.name;
+    window.renderAlbumPalette?.(album);
+    $("#focusArtist").textContent = album.artist || "";
+    $("#focusStats").innerHTML = `<div><dt>个人评分</dt><dd>${album.userRating ?? "—"} / 10</dd></div><div><dt>社区评分</dt><dd>${album.communityRating ?? "—"} / 5</dd></div><div><dt>年份</dt><dd>${album.year ?? "—"}</dd></div><div><dt>专辑时长</dt><dd>${album.durationSeconds ? `${Math.round(album.durationSeconds / 60)} 分钟` : "—"}</dd></div>`;
+    $("#focusDescriptors").textContent = (album.descriptors || []).join(" · ");
+    $("#focusTypes").innerHTML = (album.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("") || "<span>尚未分类</span>";
+    renderRelationPath(album);
+    $("#galleryLink").href = album.url || "/";
+    $("#viewModeLink").href = `explore-3d.html?album=${center.id}`;
+    $("#makeCenterButton").hidden = album.id === center.id;
     $("#trail").innerHTML = state.trail.map((id) => {
       const item = state.byId.get(id), image2 = primary(item);
-      return `<button class="${id === person.id ? "current" : ""}" data-trail-id="${id}" title="${escapeHtml(item.name)}"><img src="${image2.image}" alt="${escapeHtml(item.name)}" style="object-position:${cropPosition(item, image2)}"></button>`;
+      return `<button class="${id === album.id ? "current" : ""}" data-trail-id="${id}" title="${escapeHtml(item.name)}"><img src="${image2.image}" alt="${escapeHtml(item.name)}" style="object-position:${cropPosition(item, image2)}"></button>`;
     }).join("");
-    $("#trail").querySelectorAll("[data-trail-id]").forEach((button) => button.onclick = () => selectPerson(Number(button.dataset.trailId), { record: false }));
+    $("#trail").querySelectorAll("[data-trail-id]").forEach((button) => button.onclick = () => selectAlbum(Number(button.dataset.trailId), { record: false }));
     bindFocusHighlightInteractions();
   }
   function relationChain(id) {
@@ -221,18 +224,18 @@
     while (chain[0] !== state.focusId && state.parentById.has(chain[0])) chain.unshift(state.parentById.get(chain[0]));
     return chain;
   }
-  function renderRelationPath(person) {
+  function renderRelationPath(album) {
     const container = $("#relationPath");
-    if (person.id === state.focusId) {
+    if (album.id === state.focusId) {
       container.hidden = true;
       container.innerHTML = "";
       return;
     }
-    const chain = relationChain(person.id);
+    const chain = relationChain(album.id);
     container.hidden = false;
     container.innerHTML = `<div class="relation-path-title">\u4ECE\u56FE\u4E2D\u5FC3\u5230\u5F53\u524D\u4E13\u8F91</div>${chain.map((id, index) => {
       const item = state.byId.get(id), previous = index ? state.byId.get(chain[index - 1]) : null;
-      return `<div class="relation-step" data-relation-person="${id}"><i class="relation-dot"></i><span><b>${escapeHtml(item.name)}</b><small>${previous ? escapeHtml(relationReason(previous, item)) : "\u56FE\u4E2D\u5FC3"}</small></span></div>`;
+      return `<div class="relation-step" data-relation-album="${id}"><i class="relation-dot"></i><span><b>${escapeHtml(item.name)}</b><small>${previous ? escapeHtml(relationReason(previous, item)) : "\u56FE\u4E2D\u5FC3"}</small></span></div>`;
     }).join("")}`;
   }
   function subtreeIds(rootId) {
@@ -254,8 +257,8 @@
     return ids;
   }
   function applyHighlightSet(highlighted, active = true) {
-    document.querySelectorAll("[data-person-id]").forEach((node) => {
-      const included = highlighted.has(Number(node.dataset.personId));
+    document.querySelectorAll("[data-album-id]").forEach((node) => {
+      const included = highlighted.has(Number(node.dataset.albumId));
       node.classList.toggle("subtree-highlight", active && included);
       node.classList.toggle("subtree-muted", active && !included);
     });
@@ -270,15 +273,15 @@
   }
   function bindFocusHighlightInteractions() {
     $("#focusTypes").querySelectorAll("[data-highlight-type]").forEach((element) => {
-      element.onmouseenter = () => applyHighlightSet(new Set(state.people.filter((person) => person[element.dataset.highlightKind] === element.dataset.highlightType).map((person) => person.id)));
+      element.onmouseenter = () => applyHighlightSet(new Set(state.albums.filter((album) => album[element.dataset.highlightKind] === element.dataset.highlightType).map((album) => album.id)));
       element.onmouseleave = () => highlightSubtree(state.selectedId);
     });
-    $("#relationPath").querySelectorAll("[data-relation-person]").forEach((element) => {
-      element.onmouseenter = () => highlightSubtree(Number(element.dataset.relationPerson), true);
+    $("#relationPath").querySelectorAll("[data-relation-album]").forEach((element) => {
+      element.onmouseenter = () => highlightSubtree(Number(element.dataset.relationAlbum), true);
       element.onmouseleave = () => highlightSubtree(state.selectedId);
     });
   }
-  function selectPerson(id, { record = true } = {}) {
+  function selectAlbum(id, { record = true } = {}) {
     if (!state.byId.has(id)) return;
     state.selectedId = id;
     if (record && state.trail.at(-1) !== id) {
@@ -286,12 +289,12 @@
       if (state.trail.length > 18) state.trail.shift();
     }
     document.querySelectorAll(".network-node.selected").forEach((node) => node.classList.remove("selected"));
-    document.querySelector(`[data-person-id="${id}"]`)?.classList.add("selected");
+    document.querySelector(`[data-album-id="${id}"]`)?.classList.add("selected");
     highlightSubtree(id);
     $(".focus-panel").classList.remove("panel-hidden");
     renderFocus();
   }
-  function focusPerson(id, { record = true } = {}) {
+  function focusAlbum(id, { record = true } = {}) {
     if (!state.byId.has(id)) return;
     state.focusId = id;
     state.selectedId = id;
@@ -303,26 +306,26 @@
     renderNetwork();
     renderFocus();
   }
-  function syncNodeImage(person, record) {
-    document.querySelectorAll(`[data-person-id="${person.id}"] img`).forEach((image) => {
+  function syncNodeImage(album, record) {
+    document.querySelectorAll(`[data-album-id="${album.id}"] img`).forEach((image) => {
       image.src = record.image;
-      image.style.objectPosition = cropPosition(person, record);
+      image.style.objectPosition = cropPosition(album, record);
     });
   }
   function stepImage(delta) {
-    const person = state.byId.get(state.selectedId), images = imagesOf(person), current = state.imageIndex.get(person.id) || 0, next = (current + delta + images.length) % images.length;
-    state.imageIndex.set(person.id, next);
-    syncNodeImage(person, images[next]);
+    const album = state.byId.get(state.selectedId), images = imagesOf(album), current = state.imageIndex.get(album.id) || 0, next = (current + delta + images.length) % images.length;
+    state.imageIndex.set(album.id, next);
+    syncNodeImage(album, images[next]);
     renderFocus();
   }
-  function stepPerson(delta) {
+  function stepAlbum(delta) {
     const order = [state.focusId, ...state.graphEdges.map((edge) => edge.target)], index = Math.max(0, order.indexOf(state.selectedId)), next = order[(index + delta + order.length) % order.length];
-    selectPerson(next);
+    selectAlbum(next);
   }
   function surprise() {
     const focus = state.byId.get(state.focusId), ranked = rankedNeighbors(focus).filter((item) => Number.isFinite(item.distance)), pool = ranked.slice(Math.floor(ranked.length * 0.22), Math.max(1, Math.floor(ranked.length * 0.6)));
     const choice = pool[Math.floor(Math.random() * pool.length)] || ranked.at(-1);
-    if (choice) selectPerson(choice.person.id);
+    if (choice) selectAlbum(choice.album.id);
   }
   function paintForceGraph() {
     state.nodeElements.forEach(([id, node]) => {
@@ -475,8 +478,8 @@
     state.simulationFrame = requestAnimationFrame(tick);
   }
   function bindForceNodes() {
-    $("#networkNodes").querySelectorAll("[data-person-id]").forEach((node) => {
-      const id = Number(node.dataset.personId);
+    $("#networkNodes").querySelectorAll("[data-album-id]").forEach((node) => {
+      const id = Number(node.dataset.albumId);
       node.onpointerdown = (event) => {
         event.stopPropagation();
         state.hoverId = id;
@@ -513,8 +516,8 @@
       node.ondblclick = (event) => {
         event.preventDefault();
         event.stopPropagation();
-        focusPerson(id);
-        moveCameraToPerson(id);
+        focusAlbum(id);
+        moveCameraToAlbum(id);
       };
       node.onpointermove = (event) => {
         const drag = state.nodeDrag;
@@ -547,7 +550,7 @@
         state.nodeDrag = null;
         if (!drag.moved) {
           state.dragBoost = null;
-          selectPerson(id);
+          selectAlbum(id);
         } else {
           highlightSubtree(state.hoverId || state.selectedId, Boolean(state.hoverId));
           startSimulation(0.55);
@@ -565,7 +568,7 @@
     cancelAnimationFrame(state.cameraFrame);
     state.cameraFrame = null;
   }
-  function moveCameraToPerson(id) {
+  function moveCameraToAlbum(id) {
     stopCameraAnimation();
     const started = performance.now(), startX = state.panX, startY = state.panY, duration = 1800;
     const animate = (now) => {
@@ -650,7 +653,7 @@
     viewport.onclick = (event) => {
       if (event.target.closest(".network-node")) return;
       if (isCompactPortrait()) $(".focus-panel").classList.add("panel-hidden");
-      else selectPerson(state.focusId, { record: false });
+      else selectAlbum(state.focusId, { record: false });
     };
     viewport.onpointerdown = (event) => {
       if (event.target.closest(".network-node")) return;
@@ -680,14 +683,14 @@
       stopCameraAnimation();
       fitNetwork();
     };
-    $("#previousPerson").onclick = () => stepPerson(-1);
-    $("#nextPerson").onclick = () => stepPerson(1);
+    $("#previousAlbum").onclick = () => stepAlbum(-1);
+    $("#nextAlbum").onclick = () => stepAlbum(1);
     $("#surpriseButton").onclick = surprise;
     $("#makeCenterButton").onclick = () => {
       const nextCenter = state.selectedId;
       if (isCompactPortrait()) $(".focus-panel").classList.add("panel-hidden");
-      focusPerson(nextCenter);
-      moveCameraToPerson(nextCenter);
+      focusAlbum(nextCenter);
+      moveCameraToAlbum(nextCenter);
     };
     $("#closeFocusPanel").onclick = () => $(".focus-panel").classList.add("panel-hidden");
     $("#similarButton").onclick = () => {
@@ -706,8 +709,8 @@
         return;
       }
       if (event.target.matches("input")) return;
-      if (event.key === "ArrowLeft") stepPerson(-1);
-      if (event.key === "ArrowRight") stepPerson(1);
+      if (event.key === "ArrowLeft") stepAlbum(-1);
+      if (event.key === "ArrowRight") stepAlbum(1);
       if (event.key === "ArrowUp") stepImage(-1);
       if (event.key === "ArrowDown") stepImage(1);
     });
@@ -725,14 +728,14 @@
         results.hidden = true;
         return;
       }
-      const matches = state.people.filter((person) => String(person.id).includes(query) || person.name.toLocaleLowerCase().includes(query)).slice(0, 8);
-      results.innerHTML = matches.map((person) => {
-        const image = primary(person);
-        return `<button class="search-result" data-search-id="${person.id}"><img src="${image.image}" alt="" style="object-position:${cropPosition(person, image)}"><span>${escapeHtml(person.name)}<small>${person.year ?? "\u672A\u77E5"}</small></span></button>`;
+      const matches = state.albums.filter((album) => String(album.id).includes(query) || album.name.toLocaleLowerCase().includes(query)).slice(0, 8);
+      results.innerHTML = matches.map((album) => {
+        const image = primary(album);
+        return `<button class="search-result" data-search-id="${album.id}"><img src="${image.image}" alt="" style="object-position:${cropPosition(album, image)}"><span>${escapeHtml(album.name)}<small>${album.year ?? "\u672A\u77E5"}</small></span></button>`;
       }).join("") || '<div class="search-result">\u6CA1\u6709\u5339\u914D\u4E13\u8F91</div>';
       results.hidden = false;
       results.querySelectorAll("[data-search-id]").forEach((button) => button.onclick = () => {
-        selectPerson(Number(button.dataset.searchId));
+        selectAlbum(Number(button.dataset.searchId));
         input.value = "";
         results.hidden = true;
       });
@@ -749,18 +752,19 @@
   }
   async function init() {
     try {
-      const response = await fetch("docs/people.json");
+      const response = await fetch("docs/albums.json");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const document2 = await response.json();
-      state.people = (document2.people || []).filter((person) => person && Number.isInteger(person.id) && person.image);
-      state.byId = new Map(state.people.map((person) => [person.id, person]));
-      if (!state.people.length) throw new Error("\u4E13\u8F91\u6863\u6848\u4E3A\u7A7A");
+      state.albums = (document2.albums || []).filter((album) => album && Number.isInteger(album.id) && album.image);
+      state.byId = new Map(state.albums.map((album) => [album.id, album]));
+      if (!state.albums.length) throw new Error("\u4E13\u8F91\u6863\u6848\u4E3A\u7A7A");
       bindInteraction();
       bindSearch();
       window.RelationSimilarity?.bind(() => { state.neighborOffset = 0; renderNetwork(true); renderFocus(); });
-      const requested = Number(new URLSearchParams(location.search).get("person")), initial = state.byId.has(requested) ? requested : state.people[Math.floor(Math.random() * state.people.length)].id;
-      state.scale = 0.5;
-      focusPerson(initial);
+      const requested = Number(new URLSearchParams(location.search).get("album")), initial = state.byId.has(requested) ? requested : state.albums[Math.floor(Math.random() * state.albums.length)].id;
+      state.scale = isCompactPortrait() ? 0.5 / 1.8 : 0.5;
+      focusAlbum(initial);
+      $(".focus-panel").classList.add("panel-hidden");
       $("#exploreApp").setAttribute("aria-busy", "false");
       $("#status").hidden = true;
     } catch (error) {

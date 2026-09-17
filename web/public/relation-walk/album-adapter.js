@@ -15,15 +15,15 @@
     if (trail) info.appendChild(trail);
     return info;
   }
-  window.renderAlbumPalette = function (person) {
+  window.renderAlbumPalette = function (album) {
     const copy = document.querySelector('.focus-copy');
     const info = ensureInfoBlock();
     const panel = document.querySelector('.focus-panel');
-    const theme = person?.themeColor || person?.palette?.find(color => color?.hex)?.hex || person?.detailBackground || '#f1efe8';
+    const theme = album?.themeColor || album?.palette?.find(color => color?.hex)?.hex || album?.detailBackground || '#f1efe8';
     panel?.style.setProperty('--album-theme', theme);
     if (!copy) return;
     panel?.querySelector('.focus-palette')?.remove();
-    const colors = Array.isArray(person?.palette) ? person.palette.filter(color => color?.hex) : [];
+    const colors = Array.isArray(album?.palette) ? album.palette.filter(color => color?.hex) : [];
     if (!colors.length) return;
     const strip = document.createElement('div');
     strip.className = 'focus-palette';
@@ -42,10 +42,10 @@
   };
   window.fetch = async function (input, init) {
     const url = typeof input === 'string' ? input : input.url;
-    if (!/docs\/people\.json(?:$|[?#])/.test(url)) return nativeFetch(input, init);
+    if (!/docs\/albums\.json(?:$|[?#])/.test(url)) return nativeFetch(input, init);
     const response = await nativeFetch('/data/albums.json', init);
-    const albums = await response.json();
-    const people = albums.map((album, index) => {
+    const sourceAlbums = await response.json();
+    const albums = sourceAlbums.map((album, index) => {
       const visual = album.visual || {}, scores = {};
       ['brightness', 'contrast', 'saturation', 'detail', 'entropy', 'warmth', 'colorfulness', 'symmetry', 'darkRatio', 'lightRatio', 'hueDiversity'].forEach(key => {
         if (Number.isFinite(visual[key])) scores[key] = visual[key];
@@ -63,7 +63,7 @@
         genres: [...new Set(album.genres || [])], descriptors: [...new Set(album.descriptors || [])], palette: visual.palette || [], themeColor: accent.hex,
         url: album.url || '/', hasTransparentPixels: false, detailBackground: accent.hex || '#181815' };
     });
-    return new Response(JSON.stringify({ people }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ albums }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
   };
 })();
 document.write('<script src="similarity-settings.js"><\/script>');
