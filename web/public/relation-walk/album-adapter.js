@@ -47,13 +47,14 @@
     const albums = await response.json();
     const people = albums.map((album, index) => {
       const visual = album.visual || {}, scores = {};
-      ['brightness', 'contrast', 'saturation', 'detail', 'entropy', 'warmth', 'colorfulness', 'symmetry', 'darkRatio', 'lightRatio'].forEach(key => {
+      ['brightness', 'contrast', 'saturation', 'detail', 'entropy', 'warmth', 'colorfulness', 'symmetry', 'darkRatio', 'lightRatio', 'hueDiversity'].forEach(key => {
         if (Number.isFinite(visual[key])) scores[key] = visual[key];
       });
       if (Number.isFinite(visual.chromaticHue)) scores.hue = visual.chromaticHue;
-      scores.year = Number(album.year) || 2000;
-      scores.userRating = Number(album.userRating) || 0;
-      scores.communityRating = (Number(album.communityRating) || 0) * 2;
+      if (Number(album.year) > 0) scores.year = Number(album.year);
+      if (Number(album.userRating) > 0) scores.userRating = Number(album.userRating);
+      if (Number(album.communityRating) > 0) scores.communityRating = Number(album.communityRating) * 2;
+      if (Number(album.durationSeconds) > 0) scores.duration = Number(album.durationSeconds);
       const accent = visual.accent || visual.dominant || {};
       return { id: Number(album.id) || index + 1, name: album.title, image: album.cover,
         images: [{ image: album.cover, hasTransparentPixels: false, detailBackground: accent.hex || '#181815' }], scores,
@@ -65,3 +66,4 @@
     return new Response(JSON.stringify({ people }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
   };
 })();
+document.write('<script src="similarity-settings.js"><\/script>');

@@ -3,7 +3,6 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 const $ = (selector) => document.querySelector(selector);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-const excludedRelationScores = /* @__PURE__ */ new Set();
 const compactRenderer = matchMedia("(max-width: 800px), (pointer: coarse)").matches;
 const simulationTickLimit = compactRenderer ? 720 : 1100;
 const state = { people: [], byId: /* @__PURE__ */ new Map(), focusId: null, selectedId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, positions: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), graphEdges: [], hoverHighlightIds: null, liveCropByImage: /* @__PURE__ */ new Map(), simulationEnergy: 0, simulationFrame: null, cameraFollowCenter: false };
@@ -39,18 +38,15 @@ function primary(person) {
   return imagesOf(person).find((item) => item.image === person.image) || imagesOf(person)[0];
 }
 function comparableDistance(a, b) {
-  const pairs = Object.keys(a.scores || {}).filter((key) => !excludedRelationScores.has(key) && Number.isFinite(a.scores[key]) && Number.isFinite(b.scores?.[key]));
-  if (!pairs.length) return Infinity;
-  const squared = pairs.reduce((sum, key) => sum + (a.scores[key] - b.scores[key]) ** 2, 0) / pairs.length;
-  return Math.sqrt(squared) * (1 + Math.max(0, 7 - pairs.length) * 0.05);
+  return window.RelationSimilarity?.distance(a, b) ?? Infinity;
 }
 function rankedNeighbors(person) {
   return state.people.filter((candidate) => candidate.id !== person.id).map((candidate) => ({ person: candidate, distance: comparableDistance(person, candidate) })).sort((a, b) => a.distance - b.distance || a.person.id - b.person.id);
 }
 function relationReason(a, b) {
   const labels = { brightness: "\u5C01\u9762\u4EAE\u5EA6", contrast: "\u5C01\u9762\u5BF9\u6BD4\u5EA6", saturation: "\u5C01\u9762\u9971\u548C\u5EA6", detail: "\u7EC6\u8282\u5BC6\u5EA6", entropy: "\u89C6\u89C9\u590D\u6742\u5EA6", warmth: "\u8272\u6E29", colorfulness: "\u8272\u5F69\u4E30\u5BCC\u5EA6", symmetry: "\u6784\u56FE\u5BF9\u79F0\u5EA6", darkRatio: "\u6697\u8272\u5360\u6BD4", lightRatio: "\u4EAE\u8272\u5360\u6BD4", hue: "\u4E3B\u8272\u76F8", year: "\u53D1\u884C\u5E74\u4EFD", userRating: "\u4E2A\u4EBA\u8BC4\u5206", communityRating: "RYM \u8BC4\u5206" };
-  const close = Object.keys(a.scores || {}).filter((key) => !excludedRelationScores.has(key) && Number.isFinite(a.scores[key]) && Number.isFinite(b.scores?.[key])).sort((x, y) => Math.abs(a.scores[x] - b.scores[x]) - Math.abs(a.scores[y] - b.scores[y])).slice(0, 2);
-  return close.length ? close.map((key) => labels[key] || key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
+  const close = window.RelationSimilarity?.closest(a, b, 2) || [];
+  return close.length ? close.map((item) => item.label || labels[item.key] || item.key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
 }
 function balancedSeedGroups(members, seeds) {
   const groups = seeds.map((seed) => ({ seed, members: [seed] })), baseSize = Math.floor(members.length / groups.length), remainder = members.length % groups.length, capacities = groups.map((_, index) => baseSize + (index < remainder ? 1 : 0)), pending = members.filter((person) => !seeds.includes(person));
@@ -396,7 +392,7 @@ function startSimulation(energy = 1, speed = 1) {
   };
   state.simulationFrame = requestAnimationFrame(tick);
 }
-function renderNetwork() {
+function renderNetwork(reinitializeFan = false) {
   const focus = state.byId.get(state.focusId);
   if (!focus) return;
   const previousPositions = state.positions, tree = buildSimilarityTree(focus);
@@ -405,7 +401,10 @@ function renderNetwork() {
   state.parentById = new Map(tree.edges.map((edge) => [edge.target, edge.source]));
   const firstLevel = tree.children.get(focus.id) || [];
   state.neighbors = firstLevel.map((id) => ({ person: state.byId.get(id), distance: comparableDistance(focus, state.byId.get(id)) }));
-  if (previousPositions.size) {
+  if (reinitializeFan) {
+    const targets = seedPositions(focus.id, tree.children), root = targets.get(focus.id);
+    state.positions = new Map([...targets].map(([id, point]) => [id, id === focus.id ? point : { ...point, x: root.x + (point.x - root.x) * 0.06, y: root.y + (point.y - root.y) * 0.06, z: root.z + (point.z - root.z) * 0.06 }]));
+  } else if (previousPositions.size) {
     state.positions = new Map(state.people.map((person) => {
       const point = previousPositions.get(person.id);
       return [person.id, { x: point.x, y: point.y, z: point.z, vx: 0, vy: 0, vz: 0, fixed: false }];
@@ -413,7 +412,7 @@ function renderNetwork() {
   } else state.positions = seedPositions(focus.id, tree.children);
   rebuildScene();
   state.cameraFollowCenter = previousPositions.size > 0;
-  startSimulation(1, previousPositions.size ? 0.08 : 1);
+  startSimulation(1, reinitializeFan ? 1 : previousPositions.size ? 0.08 : 1);
   if (!previousPositions.size) resetCamera();
 }
 function renderFocus() {
@@ -816,6 +815,7 @@ async function init() {
     initThree();
     bindInteraction();
     bindSearch();
+    window.RelationSimilarity?.bind(() => { state.neighborOffset = 0; renderNetwork(true); renderFocus(); });
     const requested = Number(new URLSearchParams(location.search).get("person")), initial = state.byId.has(requested) ? requested : state.people[Math.floor(Math.random() * state.people.length)].id;
     focusPerson(initial);
     $("#exploreApp").setAttribute("aria-busy", "false");

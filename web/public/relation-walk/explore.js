@@ -5,7 +5,6 @@
   const state = { people: [], byId: /* @__PURE__ */ new Map(), focusId: null, renderedFocusId: null, selectedId: null, hoverId: null, neighbors: [], trail: [], imageIndex: /* @__PURE__ */ new Map(), neighborOffset: 0, scale: 1, panX: 0, panY: 0, drag: null, nodeDrag: null, dragBoost: null, pointers: /* @__PURE__ */ new Map(), pinch: null, positions: /* @__PURE__ */ new Map(), nodeRadii: /* @__PURE__ */ new Map(), branchPathById: /* @__PURE__ */ new Map(), topBranchById: /* @__PURE__ */ new Map(), branchAngles: /* @__PURE__ */ new Map(), parentById: /* @__PURE__ */ new Map(), depthById: /* @__PURE__ */ new Map(), graphEdges: [], nodeElements: [], edgeElements: [], graphAnchor: { ...worldCenter }, cameraFrame: null, simulationFrame: null, layoutFrame: null, simulationEnergy: 0 };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-  const excludedRelationScores = /* @__PURE__ */ new Set();
   function imagesOf(person) {
     const images = Array.isArray(person.images) && person.images.length ? person.images : [{ image: person.image, crop: person.crop, hasTransparentPixels: person.hasTransparentPixels, detailBackground: person.detailBackground }];
     return images.filter((item) => item && typeof item.image === "string");
@@ -32,18 +31,15 @@
     return imagesOf(person).find((item) => item.image === person.image) || imagesOf(person)[0];
   }
   function comparableDistance(a, b) {
-    const pairs = Object.keys(a.scores || {}).filter((key) => !excludedRelationScores.has(key) && Number.isFinite(a.scores[key]) && Number.isFinite(b.scores?.[key]));
-    if (!pairs.length) return Infinity;
-    const squared = pairs.reduce((sum, key) => sum + (a.scores[key] - b.scores[key]) ** 2, 0) / pairs.length;
-    return Math.sqrt(squared) * (1 + Math.max(0, 7 - pairs.length) * 0.05);
+    return window.RelationSimilarity?.distance(a, b) ?? Infinity;
   }
   function rankedNeighbors(person) {
     return state.people.filter((candidate) => candidate.id !== person.id).map((candidate) => ({ person: candidate, distance: comparableDistance(person, candidate) })).sort((a, b) => a.distance - b.distance || a.person.id - b.person.id);
   }
   function relationReason(a, b) {
     const labels = { brightness: "\u5C01\u9762\u4EAE\u5EA6", contrast: "\u5C01\u9762\u5BF9\u6BD4\u5EA6", saturation: "\u5C01\u9762\u9971\u548C\u5EA6", detail: "\u7EC6\u8282\u5BC6\u5EA6", entropy: "\u89C6\u89C9\u590D\u6742\u5EA6", warmth: "\u8272\u6E29", colorfulness: "\u8272\u5F69\u4E30\u5BCC\u5EA6", symmetry: "\u6784\u56FE\u5BF9\u79F0\u5EA6", darkRatio: "\u6697\u8272\u5360\u6BD4", lightRatio: "\u4EAE\u8272\u5360\u6BD4", hue: "\u4E3B\u8272\u76F8", year: "\u53D1\u884C\u5E74\u4EFD", userRating: "\u4E2A\u4EBA\u8BC4\u5206", communityRating: "RYM \u8BC4\u5206" };
-    const close = Object.keys(a.scores || {}).filter((key) => !excludedRelationScores.has(key) && Number.isFinite(a.scores[key]) && Number.isFinite(b.scores?.[key])).sort((x, y) => Math.abs(a.scores[x] - b.scores[x]) - Math.abs(a.scores[y] - b.scores[y])).slice(0, 2);
-    return close.length ? close.map((key) => labels[key] || key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
+    const close = window.RelationSimilarity?.closest(a, b, 2) || [];
+    return close.length ? close.map((item) => item.label || labels[item.key] || item.key).join("\u3001") : "\u540C\u5C5E\u5F53\u524D\u53EF\u63A2\u7D22\u4E13\u8F91\u5E93";
   }
   function nodeMarkup(person, role, position, caption = "", reason = "") {
     const image = primary(person);
@@ -139,7 +135,7 @@
     };
     state.layoutFrame = requestAnimationFrame(animate);
   }
-  function renderNetwork() {
+  function renderNetwork(reinitializeFan = false) {
     cancelAnimationFrame(state.simulationFrame);
     cancelAnimationFrame(state.layoutFrame);
     const focus = state.byId.get(state.focusId);
@@ -169,6 +165,13 @@
       const previous = previousPositions.get(person.id), seed = seededPositions.get(person.id), point = previous || seed;
       return [person.id, { x: point.x, y: point.y, vx: previous?.vx || 0, vy: previous?.vy || 0, fixed: false }];
     }));
+    if (reinitializeFan) state.positions.forEach((point, id) => {
+      if (id === focus.id) return;
+      const target = seededPositions.get(id), angle = Math.atan2(target.y - state.graphAnchor.y, target.x - state.graphAnchor.x);
+      point.x = state.graphAnchor.x + Math.cos(angle) * 24;
+      point.y = state.graphAnchor.y + Math.sin(angle) * 24;
+      point.vx = point.vy = 0;
+    });
     const collisionScale = collisionSpacing();
     state.nodeRadii = new Map(state.people.map((person) => [person.id, (person.id === focus.id ? 128 : localIds.has(person.id) ? 112 : 108) * collisionScale]));
     $("#networkNodes").innerHTML = state.people.map((person) => {
@@ -183,7 +186,7 @@
     state.nodeElements = [...$("#networkNodes").querySelectorAll("[data-person-id]")].map((node) => [Number(node.dataset.personId), node]);
     state.edgeElements = [...$("#networkEdges").querySelectorAll("line[data-source]")].map((line) => [Number(line.dataset.source), Number(line.dataset.target), line]);
     bindForceNodes();
-    if (changingCenter) animateToSeedLayout(seededPositions, () => startSimulation(1, 0.16, true));
+    if (changingCenter || reinitializeFan) animateToSeedLayout(seededPositions, () => startSimulation(1, 0.16, true));
     else startSimulation(1, 0.16, true);
     applyTransform();
   }
@@ -754,6 +757,7 @@
       if (!state.people.length) throw new Error("\u4E13\u8F91\u6863\u6848\u4E3A\u7A7A");
       bindInteraction();
       bindSearch();
+      window.RelationSimilarity?.bind(() => { state.neighborOffset = 0; renderNetwork(true); renderFocus(); });
       const requested = Number(new URLSearchParams(location.search).get("person")), initial = state.byId.has(requested) ? requested : state.people[Math.floor(Math.random() * state.people.length)].id;
       state.scale = 0.5;
       focusPerson(initial);
