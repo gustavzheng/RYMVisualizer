@@ -6,6 +6,7 @@
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
     "start": "npm --prefix web run start",
-    "analyze-data": "npm --prefix web run analyze-data"
+    "analyze-data": "npm --prefix web run analyze-data",
+    "import:rym": "import-rym-singlefile.cmd"
   }
 }
