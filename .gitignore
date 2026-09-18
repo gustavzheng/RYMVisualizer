@@ -23,3 +23,5 @@ cache/rym-singlefile/*.html
 cache/rym-singlefile/*.htm
 !cache/rym-singlefile/.gitkeep
 .rym-crawler-venv/
+__pycache__/
+*.py[cod]
