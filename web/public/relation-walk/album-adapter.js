@@ -1,5 +1,8 @@
 (function () {
   const nativeFetch = window.fetch.bind(window);
+  const scriptUrl = new URL(document.currentScript.src);
+  const siteBasePath = scriptUrl.pathname.replace(/\/relation-walk\/album-adapter\.js$/, '');
+  const withBasePath = path => typeof path === 'string' && path.startsWith('/') ? `${siteBasePath}${path}` : path;
   function ensureInfoBlock() {
     const panel = document.querySelector('.focus-panel');
     if (!panel) return null;
@@ -43,7 +46,7 @@
   window.fetch = async function (input, init) {
     const url = typeof input === 'string' ? input : input.url;
     if (!/docs\/albums\.json(?:$|[?#])/.test(url)) return nativeFetch(input, init);
-    const response = await nativeFetch('/data/albums.json', init);
+    const response = await nativeFetch(`${siteBasePath}/data/albums.json`, init);
     const sourceAlbums = await response.json();
     const albums = sourceAlbums.map((album, index) => {
       const visual = album.visual || {}, scores = {};
@@ -56,8 +59,9 @@
       if (Number(album.communityRating) > 0) scores.communityRating = Number(album.communityRating) * 2;
       if (Number(album.durationSeconds) > 0) scores.duration = Number(album.durationSeconds);
       const accent = visual.accent || visual.dominant || {};
-      return { id: Number(album.id) || index + 1, name: album.title, image: album.cover,
-        images: [{ image: album.cover, hasTransparentPixels: false, detailBackground: accent.hex || '#181815' }], scores,
+      const cover = withBasePath(album.cover);
+      return { id: Number(album.id) || index + 1, name: album.title, image: cover,
+        images: [{ image: cover, hasTransparentPixels: false, detailBackground: accent.hex || '#181815' }], scores,
         bodyArchetype: album.genres?.[0] || album.releaseType || '专辑', bodySurfaceType: album.descriptors?.[0] || album.artist || '',
         artist: album.artist, year: album.year, durationSeconds: album.durationSeconds, userRating: album.userRating, communityRating: album.communityRating,
         genres: [...new Set(album.genres || [])], descriptors: [...new Set(album.descriptors || [])], palette: visual.palette || [], themeColor: accent.hex,

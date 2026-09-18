@@ -3,6 +3,8 @@ import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import './album-lab.css';
 import './refinements.css';
 import './lab-v2.css';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const withBasePath = (path: string) => path.startsWith('/') ? `${basePath}${path}` : path;
 type Mode = 'any' | 'all';
 type Metric = 'brightness' | 'contrast' | 'saturation' | 'detail' | 'entropy' | 'warmth' | 'colorfulness' | 'symmetry' | 'darkRatio' | 'lightRatio' | 'hue';
 type SortKey = 'year' | 'userRating' | 'communityRating' | 'ratingCount' | 'title' | 'hue';
@@ -117,7 +119,7 @@ export default function AlbumLab() {
         let cancelled = false;
         const saved = Number(localStorage.getItem('chroma-tab'));
         const restoredTab = Number.isInteger(saved) && saved >= 0 && saved < 8 ? saved : 0;
-        fetch('/data/albums.json')
+        fetch(`${basePath}/data/albums.json`)
             .then(response => {
                 if (!response.ok) throw new Error(`Album data request failed: ${response.status}`);
                 return response.json() as Promise<Album[]>;
@@ -125,7 +127,7 @@ export default function AlbumLab() {
             .then(albums => {
                 if (cancelled) return;
                 setTab(restoredTab);
-                setAll(albums);
+                setAll(albums.map(album => ({ ...album, cover: withBasePath(album.cover) })));
                 requestAnimationFrame(() => setReady(true));
             })
             .catch(error => {
@@ -174,7 +176,7 @@ export default function AlbumLab() {
         restoreMenuControls.current=restore;
         return()=>{restore();if(restoreMenuControls.current===restore)restoreMenuControls.current=null;};
     },[tab]);
-    const chooseTab = (n: number) => { if (n === 8) { window.location.assign('/relations'); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; startTransition(() => setTab(n)); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
+    const chooseTab = (n: number) => { if (n === 8) { window.location.assign(`${basePath}/relations/`); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; startTransition(() => setTab(n)); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
     const handlePageClick = (event: React.MouseEvent<HTMLElement>) => {
         if ((event.target as HTMLElement).closest('.genreDirectory button,.basketDirectory button')) setPortraitMenuOpen(false);
     };

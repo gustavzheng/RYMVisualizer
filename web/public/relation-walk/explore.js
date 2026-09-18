@@ -209,7 +209,7 @@
     $("#focusDescriptors").textContent = (album.descriptors || []).join(" · ");
     $("#focusTypes").innerHTML = (album.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("") || "<span>尚未分类</span>";
     renderRelationPath(album);
-    $("#galleryLink").href = album.url || "/";
+    $("#galleryLink").href = album.url || "../../";
     $("#viewModeLink").href = `explore-3d.html?album=${center.id}`;
     $("#makeCenterButton").hidden = album.id === center.id;
     $("#trail").innerHTML = state.trail.map((id) => {
