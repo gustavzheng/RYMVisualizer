@@ -578,3 +578,15 @@ nextjs-portal{display:none!important}
 
 /* The tag-period matrix is intentionally neutral; density is shown by opacity only. */
 .tagPage .matrix>div>i{background:#fff;color:#171713}
+
+@media (orientation:landscape) and (min-width:1181px){
+  .pageSurface>section:has(.genreDirectory,.tagTools:not(.basketTools),.basketDirectory,.basketTools,.viewSwitch,.timelineTools,.axes,.sorter){padding-left:290px}
+}
+@media (orientation:landscape) and (min-width:701px) and (max-width:1180px){
+  .tagTools:not(.basketTools),.viewSwitch,.timelineTools,.axes,.sorter,.genreDirectory{position:sticky;left:auto;top:106px;width:auto;max-height:none;flex-direction:row;flex-wrap:wrap;margin-bottom:18px;background:#f4f1e8e8}
+  .timelineTools,.axes{display:flex;overflow:visible}
+  .axes>div{display:flex;flex-wrap:wrap}
+  .axes>div>b{width:100%}
+  .timelineTools button:last-child{grid-column:auto}
+  .genrePage>.tagTools,.tagPage>.tagTools,.genrePage .sorter,.tagPage .sorter,.basketPage .sorter{top:106px;max-height:none}
+}

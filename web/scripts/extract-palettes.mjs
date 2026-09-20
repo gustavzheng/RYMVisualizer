@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dataPath = path.join(root, 'public', 'data', 'albums.json');
+const databaseIndex = process.argv.indexOf('--database');
+const dataPath = databaseIndex < 0 ? path.join(root, 'public', 'data', 'albums.json') : path.resolve(process.argv[databaseIndex+1]);
 const SAMPLE_SIZE = 128;
 const MAX_PALETTE_SIZE = 12;
 const MIN_WEIGHT = 0.001;
@@ -200,10 +201,58 @@ async function extract(cover) {
   return {dominant: palette[0], accent, palette, chromaticHue: accent.h, hueDiversity: hueDiversity(palette, kept)};
 }
 
+async function visualMetrics(cover) {
+  const source = path.join(root, 'public', cover.replace(/^\//, ''));
+  const {data, info} = await sharp(source).resize(SAMPLE_SIZE, SAMPLE_SIZE, {fit:'fill'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
+  const count = info.width * info.height;
+  const light = new Float64Array(count);
+  let sum = 0, sum2 = 0, saturation = 0, warmth = 0, dark = 0, bright = 0;
+  const bins = new Uint32Array(32);
+  for (let i = 0; i < count; i++) {
+    const r = data[i * info.channels], g = data[i * info.channels + 1], b = data[i * info.channels + 2];
+    const value = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
+    light[i] = value;
+    sum += value; sum2 += value * value;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    saturation += max ? (max-min)/max : 0;
+    warmth += (r-b+255)/510;
+    dark += value < .2 ? 1 : 0;
+    bright += value > .8 ? 1 : 0;
+    bins[Math.min(31, Math.floor(value * 32))]++;
+  }
+  let edges = 0, differences = 0, pairs = 0;
+  for (let y = 0; y < info.height; y++) for (let x = 0; x < info.width; x++) {
+    const i = y * info.width + x;
+    differences += Math.abs(light[i] - light[y * info.width + info.width - 1 - x]);
+    if (x + 1 < info.width) { edges += Math.abs(light[i] - light[i+1]); pairs++; }
+    if (y + 1 < info.height) { edges += Math.abs(light[i] - light[i+info.width]); pairs++; }
+  }
+  const entropy = -Array.from(bins).reduce((total, n) => n ? total + (n/count)*Math.log2(n/count) : total, 0);
+  const round = n => Math.round(Math.max(0, Math.min(100, n))*10)/10;
+  return {
+    brightness: round(sum/count*100),
+    contrast: round(Math.sqrt(Math.max(0, sum2/count-(sum/count)**2))*300),
+    saturation: round(saturation/count*100),
+    warmth: round(warmth/count*100),
+    colorfulness: round(saturation/count*100),
+    entropy: round(entropy/5*100),
+    detail: round(edges/pairs*100),
+    symmetry: round((1-differences/count)*100),
+    darkRatio: round(dark/count*100),
+    lightRatio: round(bright/count*100),
+  };
+}
+
 const albums = JSON.parse(await fs.readFile(dataPath, 'utf8'));
+const idsIndex = process.argv.indexOf('--ids');
+const selectedIds = idsIndex < 0 ? null : new Set(process.argv.slice(idsIndex+1).filter(value => value !== '--database' && value !== process.argv[databaseIndex+1]));
 for (const [index, album] of albums.entries()) {
+  if (selectedIds && !selectedIds.has(String(album.id))) continue;
+  if (!album.cover) continue;
+  album.visual ??= {};
   Object.assign(album.visual, await extract(album.cover));
-  if ((index+1)%50 === 0) process.stdout.write(`Processed ${index+1}/${albums.length}\n`);
+  if (selectedIds) Object.assign(album.visual, await visualMetrics(album.cover));
+  if (!selectedIds && (index+1)%50 === 0) process.stdout.write(`Processed ${index+1}/${albums.length}\n`);
 }
 await fs.writeFile(dataPath, `${JSON.stringify(albums)}\n`);
 process.stdout.write(`Updated ${albums.length} palettes in ${path.relative(root, dataPath)}\n`);

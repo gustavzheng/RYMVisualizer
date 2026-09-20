@@ -10,6 +10,7 @@ from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.parse import urljoin
 
@@ -286,17 +287,24 @@ def main() -> int:
         return 2
     by_id = {str(album.get("id")): album for album in albums}
     changed = 0
+    imported_ids = []
     for path in files:
         try:
             incoming = parse_page(path, args.covers, crawler, capture_cover=not args.dry_run)
             old = by_id.get(incoming["id"], {})
             merged = dict(old)
             merged.update({k: v for k, v in incoming.items() if v not in (None, "", [])})
+            # Empty lists are valid data: unranked releases still need the app schema.
+            for key in ("ranks", "genres", "descriptors"):
+                merged.setdefault(key, [])
+            merged.setdefault("language", None)
             if "visual" not in merged:
                 merged["visual"] = DEFAULT_VISUAL
             if args.user_rating is not None:
                 merged["userRating"] = args.user_rating
             by_id[incoming["id"]] = merged
+            if merged.get("cover"):
+                imported_ids.append(incoming["id"])
             changed += 1
             print(f"OK  {incoming['id']}  {incoming['artist']} — {incoming['title']}")
         except Exception as exc:
@@ -305,6 +313,16 @@ def main() -> int:
         output = sorted(by_id.values(), key=lambda x: (x.get("year") or 0, str(x.get("artist", "")).casefold(), str(x.get("title", "")).casefold()))
         args.database.parent.mkdir(parents=True, exist_ok=True)
         args.database.write_text(json.dumps(output, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        if imported_ids:
+            try:
+                subprocess.run(
+                    ["node", str(ROOT / "web" / "scripts" / "extract-palettes.mjs"),
+                     "--database", str(args.database.resolve()), "--ids", *imported_ids],
+                    cwd=ROOT / "web", check=True,
+                )
+            except (OSError, subprocess.CalledProcessError) as exc:
+                print(f"封面视觉分析失败：{exc}", file=sys.stderr)
+                return 1
         print(f"已写入 {args.database}（{changed} 个页面，数据库共 {len(output)} 张专辑）")
     elif args.dry_run:
         print(f"试运行完成：解析成功 {changed} 个页面，未写入数据库")

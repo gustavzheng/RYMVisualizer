@@ -605,7 +605,7 @@
   function bindInteraction() {
     $(".back-link").onclick = (event) => {
       event.preventDefault();
-      window.top.location.assign("/");
+      window.top.location.assign(new URL("../", location.href));
     };
     const viewport = $("#networkViewport");
     viewport.onwheel = (event) => {
@@ -705,7 +705,7 @@
     addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        window.top.location.href = "/";
+        window.top.location.assign(new URL("../", location.href));
         return;
       }
       if (event.target.matches("input")) return;
