@@ -4,6 +4,21 @@
 .choiceCloud button:hover{background:#ffffff8f;color:var(--i);box-shadow:none}.choiceCloud button.active{background:var(--choice-color);color:#171713;box-shadow:0 3px 10px #00000018}
 .filters fieldset>div{flex-wrap:wrap;overflow:visible;align-items:center}
 .expandStage,.basketStage{position:relative;display:flow-root}.expandButton{display:block;margin:12px auto 28px;border:1px solid var(--l);background:#fffffff0;padding:10px 20px;font-size:11px;backdrop-filter:blur(14px);z-index:12}.expandButton.expanded{position:sticky;bottom:18px;box-shadow:0 7px 22px #0002}.gridToggle{margin:18px auto 30px}.gridToggle.expanded{position:sticky;bottom:18px}
+.bottomDock{background:#f7f4ecdc;border:1px solid #17171355;border-radius:7px;box-shadow:0 12px 38px #00000028;backdrop-filter:blur(18px) saturate(1.1);-webkit-backdrop-filter:blur(18px) saturate(1.1)}
+.expandButton{background:#f7f4ecdc;border-color:#17171355;border-radius:7px;box-shadow:0 12px 38px #00000028;backdrop-filter:blur(18px) saturate(1.1);-webkit-backdrop-filter:blur(18px) saturate(1.1)}
+.expandDock{position:fixed;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:35;padding:5px}
+.expandDock>button{min-height:44px;border:0;border-radius:4px;background:transparent;padding:0 18px;font:14px Georgia,"Songti SC",serif;white-space:nowrap}
+.expandDock>button:hover{background:#171713;color:#fff}
+
+/* Newest-to-oldest annual album rows. Dense years become a two-row rail that
+   scrolls as one unit; scrollbar chrome stays out of the visual timeline. */
+.timelinePage{padding-bottom:80px}.yearRows{display:flex;flex-direction:column}.yearRows.collapsed{max-height:100dvh;overflow:hidden}.yearRow{display:grid;grid-template-columns:120px minmax(0,1fr);gap:24px;padding:24px 0;border-top:1px solid var(--l)}
+.yearRow>header h2{font:42px/1 Georgia,"Songti SC",serif;margin:0}.yearRow>header span{display:block;margin-top:7px;font-size:10px;color:#666}
+.yearAlbums{display:flex;align-items:flex-start;gap:10px;min-width:0;overflow-x:auto;scrollbar-width:none}.yearAlbums::-webkit-scrollbar{display:none}
+.yearAlbums>button{flex:0 0 118px;min-width:0;border:0;background:transparent;padding:0;text-align:left}.yearAlbums img{display:block;width:118px;aspect-ratio:1;object-fit:cover}.yearAlbums span{display:block;margin-top:6px;font:11px Georgia,"Songti SC",serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.yearRow:not(.dense) .yearAlbums{justify-content:flex-start}.yearRow.dense .yearAlbums{display:grid;grid-template-rows:repeat(2,58px);grid-auto-flow:column;grid-auto-columns:58px;gap:8px;align-content:start}.yearRow.dense .yearAlbums>button{width:58px;height:58px}.yearRow.dense .yearAlbums img{width:58px;height:58px}.yearRow.dense .yearAlbums span{display:none}
+.timelineChart{margin-top:90px;padding-top:44px;border-top:5px solid var(--i)}.timelineChart .timelineNote{margin-bottom:24px}
+@media(max-width:700px){.yearRow{grid-template-columns:78px minmax(0,1fr);gap:12px}.yearRow>header h2{font-size:27px}.yearAlbums>button{flex-basis:86px}.yearAlbums img{width:86px}.timelineChart{margin-top:60px}.expandDock{bottom:max(12px,env(safe-area-inset-bottom));padding:4px}.expandDock>button{min-height:42px}}
 .resultBlock{margin:45px 0}.resultBlock>h2{font:26px Georgia}
 .plot.chartPlot{background-size:10% 10%}
 .plot>button{border:0!important;box-shadow:0 2px 7px #0002}.genreGrid article button{border:0!important;box-shadow:0 2px 6px #0002}
@@ -66,7 +81,9 @@ main{background:transparent}
 @media(max-width:560px){.baskets{grid-template-columns:1fr}.baskets>article>div{grid-template-columns:repeat(4,1fr)}.forceWorld>aside{width:calc(100% - 24px);right:12px;top:auto;bottom:12px}.clusterConfig section{grid-template-columns:1fr}.exploreBar>span{display:none}}
 
 /* 2026 refinement: shared ambient field, colored paper choices, and restrained tactile depth. */
-.topChrome nav{grid-template-columns:repeat(9,minmax(78px,1fr))}
+.topChrome>header{grid-template-columns:auto minmax(720px,1fr) auto auto}
+.topChrome nav{grid-template-columns:repeat(10,minmax(64px,1fr))}
+.topChrome nav button,.topChrome nav button b{white-space:nowrap}
 .viewSwitch{display:flex;justify-content:center;gap:6px;margin:-10px 0 44px}.viewSwitch button{border:1px solid var(--l);background:#f7f4ec;padding:10px 18px}.viewSwitch button.active{background:#171713;color:#fff;border-color:#171713}
 
 .choiceCloud button,.filters fieldset>div button,.timelineTools button:not(:nth-child(-n+2)),.sorter button:not(:last-child){border:0;background:transparent;color:#171713;box-shadow:none;padding:7px 10px}
@@ -589,4 +606,61 @@ nextjs-portal{display:none!important}
   .axes>div>b{width:100%}
   .timelineTools button:last-child{grid-column:auto}
   .genrePage>.tagTools,.tagPage>.tagTools,.genrePage .sorter,.tagPage .sorter,.basketPage .sorter{top:106px;max-height:none}
+}
+
+/* Timeline is a long-form page: the annual archive owns the full content
+   width, while the chart controls join the visualization only at the end. */
+.pageSurface>section.chartSection:has(.timelinePage){width:calc(100vw - clamp(32px,6vw,96px));max-width:none;height:auto;min-height:100dvh;overflow:visible;padding-left:0!important;padding-right:0!important}
+.timelinePage{width:100%;padding-bottom:110px}
+.yearRow{grid-template-columns:180px minmax(0,1fr);gap:36px;padding:36px 0}
+.yearRow>header h2{font-size:63px}.yearRow>header span{margin-top:10px;font-size:15px}
+.yearAlbums{gap:15px;padding:10px 10px 16px;margin:-10px -10px -16px}
+.yearAlbumRail{position:relative;min-width:0}
+.yearAlbumRail:not(.atLeft):not(.atRight) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.08) 12px,rgba(0,0,0,.25) 28px,rgba(0,0,0,.5) 50px,rgba(0,0,0,.76) 76px,#000 110px,#000 calc(100% - 110px),rgba(0,0,0,.76) calc(100% - 76px),rgba(0,0,0,.5) calc(100% - 50px),rgba(0,0,0,.25) calc(100% - 28px),rgba(0,0,0,.08) calc(100% - 12px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.08) 12px,rgba(0,0,0,.25) 28px,rgba(0,0,0,.5) 50px,rgba(0,0,0,.76) 76px,#000 110px,#000 calc(100% - 110px),rgba(0,0,0,.76) calc(100% - 76px),rgba(0,0,0,.5) calc(100% - 50px),rgba(0,0,0,.25) calc(100% - 28px),rgba(0,0,0,.08) calc(100% - 12px),transparent 100%)}
+.yearAlbumRail.atLeft:not(.atRight) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 110px),rgba(0,0,0,.76) calc(100% - 76px),rgba(0,0,0,.5) calc(100% - 50px),rgba(0,0,0,.25) calc(100% - 28px),rgba(0,0,0,.08) calc(100% - 12px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 110px),rgba(0,0,0,.76) calc(100% - 76px),rgba(0,0,0,.5) calc(100% - 50px),rgba(0,0,0,.25) calc(100% - 28px),rgba(0,0,0,.08) calc(100% - 12px),transparent 100%)}
+.yearAlbumRail.atRight:not(.atLeft) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.08) 12px,rgba(0,0,0,.25) 28px,rgba(0,0,0,.5) 50px,rgba(0,0,0,.76) 76px,#000 110px,#000 100%);mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.08) 12px,rgba(0,0,0,.25) 28px,rgba(0,0,0,.5) 50px,rgba(0,0,0,.76) 76px,#000 110px,#000 100%)}
+.yearAlbumRail.atLeft.atRight .yearAlbums{-webkit-mask-image:none;mask-image:none}
+/* Keep the physical overflow cut fully invisible, then reveal content along a
+   wider gamma-like ramp so a partially visible cover never exposes a hard edge. */
+.yearAlbumRail:not(.atLeft):not(.atRight) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,transparent 0 16px,rgba(0,0,0,.02) 36px,rgba(0,0,0,.08) 64px,rgba(0,0,0,.2) 100px,rgba(0,0,0,.42) 140px,rgba(0,0,0,.7) 180px,#000 220px,#000 calc(100% - 220px),rgba(0,0,0,.7) calc(100% - 180px),rgba(0,0,0,.42) calc(100% - 140px),rgba(0,0,0,.2) calc(100% - 100px),rgba(0,0,0,.08) calc(100% - 64px),rgba(0,0,0,.02) calc(100% - 36px),transparent calc(100% - 16px) 100%);mask-image:linear-gradient(90deg,transparent 0 16px,rgba(0,0,0,.02) 36px,rgba(0,0,0,.08) 64px,rgba(0,0,0,.2) 100px,rgba(0,0,0,.42) 140px,rgba(0,0,0,.7) 180px,#000 220px,#000 calc(100% - 220px),rgba(0,0,0,.7) calc(100% - 180px),rgba(0,0,0,.42) calc(100% - 140px),rgba(0,0,0,.2) calc(100% - 100px),rgba(0,0,0,.08) calc(100% - 64px),rgba(0,0,0,.02) calc(100% - 36px),transparent calc(100% - 16px) 100%)}
+.yearAlbumRail.atLeft:not(.atRight) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 220px),rgba(0,0,0,.7) calc(100% - 180px),rgba(0,0,0,.42) calc(100% - 140px),rgba(0,0,0,.2) calc(100% - 100px),rgba(0,0,0,.08) calc(100% - 64px),rgba(0,0,0,.02) calc(100% - 36px),transparent calc(100% - 16px) 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 220px),rgba(0,0,0,.7) calc(100% - 180px),rgba(0,0,0,.42) calc(100% - 140px),rgba(0,0,0,.2) calc(100% - 100px),rgba(0,0,0,.08) calc(100% - 64px),rgba(0,0,0,.02) calc(100% - 36px),transparent calc(100% - 16px) 100%)}
+.yearAlbumRail.atRight:not(.atLeft) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,transparent 0 16px,rgba(0,0,0,.02) 36px,rgba(0,0,0,.08) 64px,rgba(0,0,0,.2) 100px,rgba(0,0,0,.42) 140px,rgba(0,0,0,.7) 180px,#000 220px,#000 100%);mask-image:linear-gradient(90deg,transparent 0 16px,rgba(0,0,0,.02) 36px,rgba(0,0,0,.08) 64px,rgba(0,0,0,.2) 100px,rgba(0,0,0,.42) 140px,rgba(0,0,0,.7) 180px,#000 220px,#000 100%)}
+/* The left reveal is intentionally tighter; the right side keeps the longer
+   look-ahead fade that hints at more albums off canvas. */
+.yearAlbumRail:not(.atLeft):not(.atRight) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,transparent 0 8px,rgba(0,0,0,.02) 18px,rgba(0,0,0,.08) 32px,rgba(0,0,0,.2) 50px,rgba(0,0,0,.42) 70px,rgba(0,0,0,.7) 90px,#000 110px,#000 calc(100% - 220px),rgba(0,0,0,.7) calc(100% - 180px),rgba(0,0,0,.42) calc(100% - 140px),rgba(0,0,0,.2) calc(100% - 100px),rgba(0,0,0,.08) calc(100% - 64px),rgba(0,0,0,.02) calc(100% - 36px),transparent calc(100% - 16px) 100%);mask-image:linear-gradient(90deg,transparent 0 8px,rgba(0,0,0,.02) 18px,rgba(0,0,0,.08) 32px,rgba(0,0,0,.2) 50px,rgba(0,0,0,.42) 70px,rgba(0,0,0,.7) 90px,#000 110px,#000 calc(100% - 220px),rgba(0,0,0,.7) calc(100% - 180px),rgba(0,0,0,.42) calc(100% - 140px),rgba(0,0,0,.2) calc(100% - 100px),rgba(0,0,0,.08) calc(100% - 64px),rgba(0,0,0,.02) calc(100% - 36px),transparent calc(100% - 16px) 100%)}
+.yearAlbumRail.atRight:not(.atLeft) .yearAlbums{-webkit-mask-image:linear-gradient(90deg,transparent 0 8px,rgba(0,0,0,.02) 18px,rgba(0,0,0,.08) 32px,rgba(0,0,0,.2) 50px,rgba(0,0,0,.42) 70px,rgba(0,0,0,.7) 90px,#000 110px,#000 100%);mask-image:linear-gradient(90deg,transparent 0 8px,rgba(0,0,0,.02) 18px,rgba(0,0,0,.08) 32px,rgba(0,0,0,.2) 50px,rgba(0,0,0,.42) 70px,rgba(0,0,0,.7) 90px,#000 110px,#000 100%)}
+
+/* Shared cross-year shelf grid. Large covers and 2x2 compact clusters consume
+   the same 177px column, so every album edge aligns vertically between years. */
+.yearAlbums{display:grid;grid-auto-flow:column;grid-auto-columns:177px;grid-template-rows:auto;align-items:start;column-gap:15px;overflow-x:auto}
+.yearAlbums>.yearAlbumLarge{width:177px;min-width:0}
+.yearAlbumCluster{width:177px;height:177px;display:grid;grid-template-columns:repeat(2,81px);grid-template-rows:repeat(2,81px);grid-auto-flow:column;gap:15px}
+.yearAlbumCluster>button{width:81px;height:81px;min-width:0;padding:0;border:0;background:transparent;transition:transform .2s}
+.yearAlbumCluster>button:hover{transform:translateY(-3px)}
+.yearAlbumCluster>button>img{display:block;width:81px;height:81px;object-fit:cover;box-shadow:0 2px 7px #0002}
+
+@media(max-width:700px){
+  .yearAlbums{grid-auto-columns:129px;column-gap:12px}
+  .yearAlbums>.yearAlbumLarge{width:129px}
+  .yearAlbumCluster{width:129px;height:129px;grid-template-columns:repeat(2,60px);grid-template-rows:repeat(2,60px);gap:9px}
+  .yearAlbumCluster>button,.yearAlbumCluster>button>img{width:60px;height:60px}
+}
+.yearAlbums>button{flex-basis:177px;transition:transform .2s}.yearAlbums>button:hover{transform:translateY(-4px)}.yearAlbums img{width:177px;box-shadow:0 2px 7px #0002}.yearAlbums span{margin-top:9px;font-size:16px}
+.yearRow.dense .yearAlbums{grid-template-rows:repeat(2,88px);grid-auto-columns:88px;gap:12px}
+.yearRow.dense .yearAlbums>button,.yearRow.dense .yearAlbums img{width:88px;height:88px}
+.timelineChart{display:grid;grid-template-columns:270px minmax(0,1fr);grid-template-rows:auto auto;column-gap:34px;align-items:start;margin-top:120px;padding-top:54px}
+.timelineChart>.timelineTools{position:static;grid-column:1;grid-row:1/3;width:100%;max-height:none;margin:0;padding:9px;overflow:visible;align-self:start}
+.timelineChart>.timelineNote{grid-column:2;grid-row:1;margin:0 0 24px}
+.timelineChart>.stream{grid-column:2;grid-row:2;width:100%;height:620px;margin:0}
+
+@media(max-width:700px){
+  .pageSurface>section.chartSection:has(.timelinePage){width:calc(100vw - 32px);padding-inline:0!important}
+  .yearRow{grid-template-columns:117px minmax(0,1fr);gap:18px;padding:30px 0}
+  .yearRow>header h2{font-size:41px}.yearRow>header span{font-size:12px}
+  .yearAlbums{gap:12px}.yearAlbums>button{flex-basis:129px}.yearAlbums img{width:129px}.yearAlbums span{font-size:14px}
+  .yearRow.dense .yearAlbums{grid-template-rows:repeat(2,64px);grid-auto-columns:64px;gap:9px}
+  .yearRow.dense .yearAlbums>button,.yearRow.dense .yearAlbums img{width:64px;height:64px}
+  .timelineChart{display:block;margin-top:80px;padding-top:40px}
+  .timelineChart>.timelineTools{position:sticky;top:96px;display:flex;width:100%;margin-bottom:24px;overflow-x:auto;overflow-y:hidden;flex-flow:row nowrap!important}
+  .timelineChart>.stream{height:62dvh;min-height:460px}
 }

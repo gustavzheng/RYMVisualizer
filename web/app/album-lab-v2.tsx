@@ -1,5 +1,5 @@
 'use client';
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import './album-lab.css';
 import './refinements.css';
 import './lab-v2.css';
@@ -8,7 +8,13 @@ const withBasePath = (path: string) => path.startsWith('/') ? `${basePath}${path
 type Mode = 'any' | 'all';
 type Metric = 'brightness' | 'contrast' | 'saturation' | 'detail' | 'entropy' | 'warmth' | 'colorfulness' | 'symmetry' | 'darkRatio' | 'lightRatio' | 'hue';
 type SortKey = 'year' | 'userRating' | 'communityRating' | 'ratingCount' | 'title' | 'hue';
-type Album = {
+export function BottomDock({ children, className = '', label }: { children: ReactNode; className?: string; label?: string }) {
+    return <div className={`bottomDock ${className}`.trim()} role="group" aria-label={label}>{children}</div>;
+}
+function FloatingExpandButton({ expanded, onClick, collapsedLabel, expandedLabel, className = '' }: { expanded: boolean; onClick: () => void; collapsedLabel: string; expandedLabel: string; className?: string }) {
+    return <BottomDock className={`expandDock ${className}`.trim()} label="内容显示范围"><button aria-expanded={expanded} onClick={onClick}>{expanded ? expandedLabel : collapsedLabel}</button></BottomDock>;
+}
+export type Album = {
     id: string;
     title: string;
     artist: string;
@@ -57,7 +63,7 @@ type Album = {
     };
     url: string | null;
 };
-const tabs = ['总览', '流派星系', '标签语义', '时长与评分', '年代演化', '封面视觉', '主题篮子', '专辑档案', '关系漫游'];
+const tabs = ['总览', '流派星系', '标签语义', '年代演化', '封面视觉', '主题篮子', '时长与评分', '专辑档案', '关系漫游', '年度报告'];
 const colors = ['#d8ff38', '#ff654c', '#6680ff', '#f4bd35', '#8e6bff', '#35cda0', '#ff84bd'];
 const choiceColors = ['#f0b6ad', '#b8c9ef', '#c8b6e8', '#b9d9ca', '#efd39c', '#e6b9d1', '#b9d7df'];
 const names: Record<Metric, string> = { brightness: '亮度', contrast: '明暗对比', saturation: '饱和度', detail: '细节密度', entropy: '视觉熵', warmth: '色温', colorfulness: '色彩丰富度', symmetry: '水平对称', darkRatio: '暗部占比', lightRatio: '亮部占比', hue: '主题色相' };
@@ -156,6 +162,11 @@ export default function AlbumLab() {
         return () => { window.removeEventListener('wheel', onWheel); window.removeEventListener('touchstart', onTouchStart); window.removeEventListener('touchmove', onTouchMove); window.removeEventListener('scroll', onScroll); portrait.removeEventListener('change', onOrientation); };
     }, [filtersOpen]);
     useEffect(() => {
+        const restoreAfterBack = () => setReady(true);
+        window.addEventListener('pageshow', restoreAfterBack);
+        return () => window.removeEventListener('pageshow', restoreAfterBack);
+    }, []);
+    useEffect(() => {
         const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setPortraitMenuOpen(false); };
         const onChapter = (event: MouseEvent) => { if ((event.target as HTMLElement).closest('.genreDirectory button,.basketDirectory button')) setPortraitMenuOpen(false); };
         window.addEventListener('keydown', onKey);
@@ -176,7 +187,7 @@ export default function AlbumLab() {
         restoreMenuControls.current=restore;
         return()=>{restore();if(restoreMenuControls.current===restore)restoreMenuControls.current=null;};
     },[tab]);
-    const chooseTab = (n: number) => { if (n === 8) { window.location.assign(`${basePath}/relations/`); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; startTransition(() => setTab(n)); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
+    const chooseTab = (n: number) => { if (n === 8) { window.location.assign(`${basePath}/relations/`); return; } if (n === 9) { window.location.assign(`${basePath}/year-in-music/`); return; } restoreMenuControls.current?.(); restoreMenuControls.current=null; startTransition(() => setTab(n)); setTabsCollapsed(false); setPortraitMenuOpen(false); window.scrollTo({top: 0}); localStorage.setItem('chroma-tab', String(n)); };
     const handlePageClick = (event: React.MouseEvent<HTMLElement>) => {
         if ((event.target as HTMLElement).closest('.genreDirectory button,.basketDirectory button')) setPortraitMenuOpen(false);
     };
@@ -185,7 +196,7 @@ export default function AlbumLab() {
     const data = useMemo(() => all.filter(a => match(a.genres, gs, gm) && match(a.descriptors, ts, tm) && (!q || `${a.title} ${a.artist}`.toLowerCase().includes(q.toLowerCase()))), [all, gs, ts, gm, tm, q]);
     return <main className={portraitMenuOpen ? 'portraitMenuOpen' : ''} onClick={handlePageClick} onPointerDown={recolorPaper}><AmbientBackground/><div className={`pageSurface ${ready ? 'ready' : 'loading'}`}><div className={'topChrome ' + (tabsCollapsed ? 'tabsCollapsed' : '')}><header><b>◉ CHROMA <small>MUSIC DATA ATLAS</small></b><nav>{tabs.map((x, i) => <button className={tab === i ? 'active' : ''} onClick={() => chooseTab(i)} key={x}>{String(i).padStart(2, '0')} <b>{x}</b></button>)}</nav><span>{data.length} / {all.length} ALBUMS</span><button className="filterButton" onClick={() => setFiltersOpen(!filtersOpen)}>筛选 · {gs.length + ts.length} {filtersOpen ? '−' : '＋'}</button></header>
     <aside className={'filters ' + (filtersOpen ? 'open' : '')}><div><input value={q} onChange={e => setQ(e.target.value)} placeholder="搜索专辑 / 艺术家"/><button onClick={() => setQ('')}>清空搜索</button></div><Group title="流派" list={genres} sel={gs} set={setGs} mode={gm} setMode={setGm}/><Group title="标签" list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm}/></aside></div>
-    <section className={tab === 0 ? 'overviewSection' : tab >= 3 && tab <= 5 ? 'chartSection' : undefined}><Title n={tab} title={tabs[tab]}/>{tab === 0 && <Home data={data} go={chooseTab} open={setFocus}/>} {tab === 1 && <Genres data={data} list={genres} sel={gs} set={setGs} mode={gm} setMode={setGm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 2 && <Tags data={data} list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 3 && <ScatterOverview data={data} open={setFocus}/>} {tab === 4 && <Timeline data={data} genres={genres} tags={tags} open={setFocus}/>} {tab === 5 && <Visual data={data} open={setFocus}/>} {tab === 6 && <BasketView data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 7 && <Grid data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>}</section></div>
+    <section className={tab === 0 ? 'overviewSection' : [3, 4, 6].includes(tab) ? 'chartSection' : undefined}><Title n={tab} title={tabs[tab]}/>{tab === 0 && <Home data={data} go={chooseTab} open={setFocus}/>} {tab === 1 && <Genres data={data} list={genres} sel={gs} set={setGs} mode={gm} setMode={setGm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 2 && <Tags data={data} list={tags} sel={ts} set={setTs} mode={tm} setMode={setTm} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 3 && <Timeline data={data} genres={genres} tags={tags} open={setFocus}/>} {tab === 4 && <Visual data={data} open={setFocus}/>} {tab === 5 && <BasketView data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>} {tab === 6 && <ScatterOverview data={data} open={setFocus}/>} {tab === 7 && <Grid data={data} open={setFocus} sorts={sorts} setSorts={setSorts}/>}</section></div>
     <div id="portrait-menu-layer" className="portraitMenuLayer"/>
     {tab > 0 && <button className="portraitMenuButton" aria-label={portraitMenuOpen ? '关闭页面菜单' : '打开页面菜单'} aria-expanded={portraitMenuOpen} onClick={() => setPortraitMenuOpen(open => !open)}><i/><i/><i/></button>}
     {focus && <Detail a={focus} close={() => setFocus(null)}/>}</main>;
@@ -329,6 +340,16 @@ function greedyCover(data: Album[], options: [
     data.forEach(a => { if ((type === 'genres' ? a.genres : a.descriptors).includes(best))
         uncovered.delete(a.id); });
 } return out; }
+function YearAlbumRail({ albums, capacity, open }: { albums: Album[]; capacity: number; open: (a: Album) => void }) {
+    const rail = useRef<HTMLDivElement>(null), [edges, setEdges] = useState({ left: true, right: false });
+    const updateEdges = () => { const node=rail.current; if(node)setEdges({left:node.scrollLeft<=1,right:node.scrollLeft+node.clientWidth>=node.scrollWidth-1}) };
+    useEffect(() => { const node=rail.current; if(!node)return; updateEdges(); const observer=new ResizeObserver(updateEdges); observer.observe(node); return()=>observer.disconnect() }, [albums.length]);
+    let largeCount=albums.length;
+    const minimumLarge=Math.min(3,albums.length);
+    while(largeCount>minimumLarge&&largeCount+Math.ceil((albums.length-largeCount)/4)>capacity)largeCount--;
+    const large=albums.slice(0,largeCount), compact=albums.slice(largeCount), groups=Array.from({length:Math.ceil(compact.length/4)},(_,i)=>compact.slice(i*4,i*4+4));
+    return <div className={`yearAlbumRail ${edges.left?'atLeft':''} ${edges.right?'atRight':''}`}><div ref={rail} className="yearAlbums" onScroll={updateEdges}>{large.map(a=><button className="yearAlbumLarge" key={a.id} onClick={()=>open(a)} title={`${a.title} · ${a.artist}`}><img src={a.cover} alt=""/></button>)}{groups.map((group,i)=><div className={`yearAlbumCluster cluster-${group.length}`} key={`cluster-${i}`}>{group.map(a=><button key={a.id} onClick={()=>open(a)} title={`${a.title} · ${a.artist}`}><img src={a.cover} alt=""/></button>)}</div>)}</div></div>;
+}
 function Timeline({ data, genres, tags, open }: {
     data: Album[];
     genres: [
@@ -340,7 +361,19 @@ function Timeline({ data, genres, tags, open }: {
         number
     ][];
     open: (a: Album) => void;
-}) { const [type, setType] = useState<'genres' | 'tags'>('genres'), [keys, setKeys] = useState<string[] | null>(null), [more, setMore] = useState(false), options = type === 'genres' ? genres : tags, defaults = useMemo(() => greedyCover(data, options, type), [data, options, type]), shownKeys=keys??defaults, changeType=(next:'genres'|'tags')=>{setType(next);setKeys(null)}; return <><div className="timelineNote"><b>逐年 · 对数厚度河流图</b><span>每年一组；纵轴以 log(1 + 数量) 展开窄色带，悬停可查看该年对应类别的专辑。</span></div><div className="timelineTools"><button className={type === 'genres' ? 'active' : ''} onClick={() => changeType('genres')}>按流派</button><button className={type === 'tags' ? 'active' : ''} onClick={() => changeType('tags')}>按标签</button>{options.slice(0, more ? options.length : 24).map(([x]) => <button className={shownKeys.includes(x) ? 'picked' : ''} onClick={() => setKeys(s => {const current=s??defaults; return current.includes(x) ? current.filter(v => v !== x) : current.length < 7 ? [...current, x] : [...current.slice(0,6),x]})} key={x}>{x}</button>)}<button onClick={() => setMore(!more)}>{more ? '收起' : '更多类别 ＋'}</button></div><StreamArea data={data} keys={shownKeys} type={type} open={open}/></>; }
+}) {
+    const [type, setType] = useState<'genres' | 'tags'>('genres'), [keys, setKeys] = useState<string[] | null>(null), [more, setMore] = useState(false), [yearsExpanded, setYearsExpanded] = useState(false), [rowCapacity, setRowCapacity] = useState(Number.POSITIVE_INFINITY);
+    const yearRowsRef = useRef<HTMLDivElement>(null);
+    const options = type === 'genres' ? genres : tags, defaults = useMemo(() => greedyCover(data, options, type), [data, options, type]), shownKeys=keys??defaults;
+    const years=useMemo(()=>[...new Set(data.flatMap(a=>a.year?[a.year]:[]))].sort((a,b)=>b-a),[data]);
+    useEffect(()=>{const node=yearRowsRef.current;if(!node)return;const measure=()=>{const rail=node.querySelector<HTMLElement>('.yearAlbums'), large=rail?.querySelector<HTMLElement>('.yearAlbumLarge'), gap=rail?parseFloat(getComputedStyle(rail).columnGap)||0:0, pitch=(large?.getBoundingClientRect().width||177)+gap;setRowCapacity(Math.max(1,Math.floor(((rail?.clientWidth??node.clientWidth)+gap)/pitch)))};measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect()},[]);
+    const changeType=(next:'genres'|'tags')=>{setType(next);setKeys(null)};
+    return <div className="timelinePage">
+        <div ref={yearRowsRef} className={`yearRows ${yearsExpanded?'expanded':'collapsed'}`}>{years.map(year=>{const albums=data.filter(a=>a.year===year).sort((a,b)=>(b.userRating??-Infinity)-(a.userRating??-Infinity)||(b.communityRating??-Infinity)-(a.communityRating??-Infinity)||b.ratingCount-a.ratingCount||a.title.localeCompare(b.title)); return <section className="yearRow" key={year}><header><h2>{year}</h2><span>{albums.length} 张专辑</span></header><YearAlbumRail albums={albums} capacity={rowCapacity} open={open}/></section>})}</div>
+        <section className="timelineChart"><div className="timelineNote"><b>逐年 · 对数厚度河流图</b><span>每年一组；纵轴以 log(1 + 数量) 展开窄色带，悬停可查看该年对应类别的专辑。</span></div><div className="timelineTools"><button className={type === 'genres' ? 'active' : ''} onClick={() => changeType('genres')}>按流派</button><button className={type === 'tags' ? 'active' : ''} onClick={() => changeType('tags')}>按标签</button>{options.slice(0, more ? options.length : 24).map(([x]) => <button className={shownKeys.includes(x) ? 'picked' : ''} onClick={() => setKeys(s => {const current=s??defaults; return current.includes(x) ? current.filter(v => v !== x) : current.length < 7 ? [...current, x] : [...current.slice(0,6),x]})} key={x}>{x}</button>)}<button onClick={() => setMore(!more)}>{more ? '收起' : '更多类别 ＋'}</button></div><StreamArea data={data} keys={shownKeys} type={type} open={open}/></section>
+        <FloatingExpandButton className="timelineExpandDock" expanded={yearsExpanded} onClick={()=>setYearsExpanded(v=>!v)} collapsedLabel={`展开全部年份 · ${years.length} ↓`} expandedLabel="收起大部分年份 ↑"/>
+    </div>;
+}
 function smoothPath(points: [number, number][], move = 'M') {
     if (!points.length) return '';
     if (points.length < 3) return `${move}${points.map(p => p.join(',')).join(' L')}`;
@@ -457,7 +490,7 @@ function Grid({ data, open, sorts, setSorts }: {
 } return 0; }), [data, sorts]), [sortOpen,setSortOpen]=useState(true); return <><div className={`sorter ${sortOpen?'open':'collapsed'}`}><button className="sorterToggle" aria-expanded={sortOpen} onClick={()=>setSortOpen(v=>!v)}><b>排序优先级</b><span aria-hidden="true">{sortOpen?'−':'＋'}</span></button><div className="sorterOptions">{opts.map(([k, n]) => <button className={sorts.includes(k) ? 'active' : ''} onClick={() => setSorts(sorts.includes(k) ? sorts.filter(x => x !== k) : [...sorts, k])} key={k}>{sorts.includes(k) ? `${sorts.indexOf(k) + 1} · ` : ''}{n}</button>)}<button className="sortClear" onClick={() => setSorts([])}>清除排序 ×</button></div></div><div className="grid">{sorted.map(a => <button onClick={() => open(a)} key={a.id}><img src={a.cover} alt=""/><b>{a.title}</b><span>{a.artist}</span><span>{a.year}</span></button>)}</div></>; }
 function formatDate(a: Album) { if (!a.releaseDate)
     return a.year ? `${a.year}-01-01` : '日期未知'; const d = new Date(a.releaseDate); return Number.isNaN(d.getTime()) ? a.releaseDate : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; }
-function Detail({ a, close }: {
+export function Detail({ a, close }: {
     a: Album;
     close: () => void;
 }) { const yearRank = (a.ranks ?? []).find(r => r.scope === 'year'), overall = (a.ranks ?? []).find(r => r.scope === 'overall'), lengthClass = a.title.length > 54 ? 'extraLongTitle' : a.title.length > 32 ? 'longTitle' : '', titleClass = [lengthClass, a.title.split(/\s+/).some(word => word.length >= 16) ? 'wideWordTitle' : ''].filter(Boolean).join(' '); return <div className="back" onClick={close}><aside className="detailPanel" style={{ '--accent': accent(a).hex } as React.CSSProperties} onClick={e => e.stopPropagation()}><button className="detailClose" onClick={close}>×</button><div className="detailArt"><img src={a.cover} alt=""/><div className="palette">{a.visual.palette.map((p, i) => <i key={i} style={{ background: p.hex, flex: paletteDisplayWeight(p.weight) }}/>)}</div></div><div className="detailCopy"><small>{formatDate(a)} · {a.releaseType} · {a.language || '无语言信息'}</small><h1 className={titleClass}>{a.title}</h1><h3>{a.artist}</h3><div className="scores"><span><b>{a.userRating || '—'}</b>个人评分 / 10</span><span><b>{a.communityRating || '—'}</b>RYM / 5</span><span><b>{a.ratingCount?.toLocaleString()}</b>评分人数</span><span><b>{a.trackCount}</b>曲目</span><span><b>{a.durationSeconds ? Math.round(a.durationSeconds / 60) : '—'}</b>分钟</span><span><b>{yearRank ? `#${yearRank.position}` : '—'} / {overall ? `#${overall.position}` : '—'}</b>年度 / 历史排名</span></div><h4>流派 · {a.genres.length}</h4><p className="pills">{a.genres.map(x => <i key={x}>{x}</i>)}</p><h4>语义标签 · {a.descriptors.length}</h4><p className="pills">{a.descriptors.map(x => <i key={x}>{x}</i>)}</p><h4>视觉指标</h4><div className="metricBars">{metrics.slice(0, 8).map(m => <span key={m}>{names[m]}<i><b style={{ width: `${value(a, m)}%` }}/></i><em>{value(a, m).toFixed(1)}</em></span>)}</div>{a.url && <a href={a.url} target="_blank" rel="noreferrer">在 RYM 查看 ↗</a>}</div></aside></div>; }
